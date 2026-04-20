@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEC OPTIONAL CALCULATOR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 15px; font-size: 16px; background: #f0f2f5; }
+        h2 { text-align: center; color: #333; }
+        .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .last-card { margin-bottom: 35px; } 
+        .item-label { font-weight: bold; margin-bottom: 10px; display: block; color: #1a73e8; border-bottom: 2px solid #eee; }
+        .header-row { display: flex; font-weight: bold; background: #444; color: white; padding: 10px; border-radius: 4px; text-align: center; gap: 10px; }
+        .row { display: flex; gap: 10px; padding: 8px 0; align-items: center; border-bottom: 1px solid #f0f0f0; }
+        
+        .col-name { flex: 4; font-size: 14px; }
+        .col-qty { width: 70px; }
+        .col-va, .col-tot { width: 100px; }
+        .col-gen { width: 50px; text-align: center; }
+
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; text-align: center; }
+        input.total-box { background: #f5f5f5; font-weight: bold; border: 1px solid #ccc; color: #333; }
+        input#volt { background: #fff9c4; border: 1px solid #fbc02d; font-weight: bold; }
+        .info-input { text-align: left; width: 100%; }
+
+        .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+        .res-card { background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #1a73e8; }
+        
+        @media print {
+            @page { size: portrait; margin: 0.5in !important; }
+            body { background: white; margin: 0; padding: 0; }
+            button, .card:not(#printCard), h2 { display: none !important; }
+            #printCard { display: block !important; width: 100% !important; border: none; box-shadow: none; padding: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+            .res-summary { font-size: 14px; line-height: 1.6; }
+            .badge { font-weight: bold; color: #1a73e8; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<h2>NEC OPTIONAL CALCULATOR</h2>
+
+<div class="card">
+    <span class="item-label">CUSTOMER INFO</span>
+    <div class="row"><div class="col-name">Name</div><div style="flex:8"><input id="cn" class="info-input"></div></div>
+    <div class="row"><div class="col-name">Address</div><div style="flex:8"><input id="ad" class="info-input"></div></div>
+    <div class="row"><div class="col-name">Project Info</div><div style="flex:8"><input id="pi" class="info-input"></div></div>
+</div>
+
+<div class="card">
+    <div class="header-row">
+        <div class="col-name" style="text-align:left">LOAD DESCRIPTION</div>
+        <div class="col-qty">QTY</div>
+        <div class="col-va">VA</div>
+        <div class="col-tot">TOTAL</div>
+        <div class="col-gen">GEN</div>
+    </div>
+
+    <span class="item-label" style="margin-top:10px">GENERAL LOADS</span>
+    <div class="row">
+        <div class="col-name">Square Footage (3 VA/ft²)</div>
+        <div class="col-qty"><input id="sq" type="number"></div>
+        <div class="col-va"><input value="3" readonly tabindex="-1"></div>
+        <div class="col-tot"><input id="t_sq" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"></div>
+    </div>
+    <div class="row">
+        <div class="col-name">Small Appliance (1500)</div>
+        <div class="col-qty"><input id="sa_q" type="number"></div>
+        <div class="col-va"><input value="1500" readonly tabindex="-1"></div>
+        <div class="col-tot"><input id="t_sa" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"></div>
+    </div>
+    <div class="row">
+        <div class="col-name">Laundry Circuit (1500)</div>
+        <div class="col-qty"><input id="l_q" type="number"></div>
+        <div class="col-va"><input value="1500" readonly tabindex="-1"></div>
+        <div class="col-tot"><input id="t_l" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"></div>
+    </div>
+
+    <span class="item-label">APPLIANCES</span>
+    <div id="appRows"></div>
+    <div class="row">
+        <div class="col-name"><input id="app_custom_label" placeholder="Custom Appliance" style="text-align:left; background:transparent; border:none; border-bottom:1px solid #ccc;"></div>
+        <div class="col-qty"><input id="q_custom_app" type="number"></div>
+        <div class="col-va"><input id="v_custom_app" type="number"></div>
+        <div class="col-tot"><input id="t_custom_app" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"><input type="checkbox" id="g_custom_app" tabindex="-1"></div>
+    </div>
+
+    <div class="row" style="background:#eee; font-weight:bold;">
+        <div class="col-name">TOTAL GENERAL & APPLIANCE LOAD</div>
+        <div class="col-qty"></div>
+        <div class="col-va"></div>
+        <div class="col-tot"><input id="t_pre_derate" class="total-box" style="background:#fff" readonly tabindex="-1"></div>
+        <div class="col-gen"></div>
+    </div>
+
+    <span class="item-label" style="margin-top:20px">HVAC (A/C vs Heat @ 65% vs Heat @ 40%)</span>
+    <div id="hvacRows"></div>
+    <div class="row">
+        <div class="col-name">Heat @ 40% (4+ units)</div>
+        <div class="col-qty"><input id="q_h40" type="number"></div>
+        <div class="col-va"><input id="v_h40" type="number"></div>
+        <div class="col-tot"><input id="t_h40" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"><input type="checkbox" id="g_h40" tabindex="-1"></div>
+    </div>
+
+    <span class="item-label">CONTINUOUS</span>
+    <div class="row">
+        <div class="col-name">EV Charger (7200 Min)</div>
+        <div class="col-qty"><input id="ev_q" type="number"></div>
+        <div class="col-va"><input id="ev_v" type="number"></div>
+        <div class="col-tot"><input id="t_ev" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"><input type="checkbox" id="g_ev" tabindex="-1"></div>
+    </div>
+    <div class="row">
+        <div class="col-name"><input id="cont_label" placeholder="Custom Continuous Location" style="text-align:left; background:transparent; border:none; border-bottom:1px solid #ccc;"></div>
+        <div class="col-qty"><input id="cont_q" type="number"></div>
+        <div class="col-va"><input id="cont_v" type="number"></div>
+        <div class="col-tot"><input id="t_cont" class="total-box" readonly tabindex="-1"></div>
+        <div class="col-gen"><input type="checkbox" id="g_cont" tabindex="-1"></div>
+    </div>
+</div>
+
+<div class="card last-card">
+    <span class="item-label">SERVICE TOTALS</span>
+    <div class="row"><div class="col-name">Voltage</div><div style="flex:8"><input id="volt" type="number" value="240"></div></div>
+    <div class="row"><div class="col-name">Service Amps</div><div style="flex:8"><input id="r_svc_box" class="total-box" readonly tabindex="-1"></div></div>
+    <div class="res-grid">
+        <div class="res-card">TOTAL LOAD<br><span id="r_svc_text" style="font-size:24px">0 VA</span></div>
+        <div class="res-card" style="background:#fbe9e7; border-color:#d32f2f; color:#d32f2f;">GEN LOAD<br><span id="r_gen_text" style="font-size:24px">0 VA</span></div>
+    </div>
+</div>
+
+<button onclick="calculate()" style="width:100%; padding:20px; background:#1a73e8; color:white; border:none; border-radius:8px; font-size:18px; cursor:pointer;">Calculate & Preview Print</button>
+
+<div class="card" id="printCard" style="display:none; margin-top:20px;">
+    <div id="printContent"></div>
+</div>
+
+<script>
+const apps = ["Dishwasher", "Disposal", "Refrigerator", "Freezer", "Microwave", "Hood Fan", "Range", "Wall Oven", "Cook Top", "Wine Cooler", "Coffee Machine", "Central Vacuum", "Bath Fan", "Indoor Jacuzzi", "Garage Door Opener", "Sump Pump", "Water Heater", "Dryer"];
+const hvacPairs = [{n1:"A/C #1", id1:"ac1", n2:"Heat #1", id2:"h1"}, {n1:"A/C #2", id1:"ac2", n2:"Heat #2", id2:"h2"}];
+
+let appH = "";
+apps.forEach(a => {
+    let id = a.replace(/\s+/g, '');
+    appH += `<div class="row"><div class="col-name">${a}</div><div class="col-qty"><input id="q_${id}" type="number"></div><div class="col-va"><input id="v_${id}" type="number"></div><div class="col-tot"><input id="t_${id}" class="total-box" readonly tabindex="-1"></div><div class="col-gen"><input type="checkbox" id="g_${id}" tabindex="-1"></div></div>`;
+});
+document.getElementById("appRows").innerHTML = appH;
+
+let hvacH = "";
+hvacPairs.forEach(p => {
+    hvacH += `<div class="row"><div class="col-name">${p.n1} vs ${p.n2} (@65%)</div><div class="col-qty"><input id="q_${p.id1}" type="number" placeholder="AC"><input id="q_${p.id2}" type="number" style="margin-top:2px" placeholder="HT"></div><div class="col-va"><div style="display:flex; flex-direction:column; gap:2px;"><div style="display:flex; align-items:center;"><span style="font-size:9px; width:20px;">AC</span><input id="v_${p.id1}" type="number"></div><div style="display:flex; align-items:center;"><span style="font-size:9px; width:20px;">HT</span><input id="v_${p.id2}" type="number"></div></div></div><div class="col-tot"><input id="t_${p.id1}" class="total-box" readonly tabindex="-1"></div><div class="col-gen"><input type="checkbox" id="g_${p.id1}" tabindex="-1"></div></div>`;
+});
+document.getElementById("hvacRows").innerHTML = hvacH;
+
+hvacPairs.forEach(p => {
+    const q1 = document.getElementById("q_" + p.id1), v1 = document.getElementById("v_" + p.id1), q2 = document.getElementById("q_" + p.id2), v2 = document.getElementById("v_" + p.id2);
+    q1.addEventListener('keydown', (e) => { if(e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); v1.focus(); } });
+    v1.addEventListener('keydown', (e) => { if(e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); q2.focus(); } });
+    q2.addEventListener('keydown', (e) => { if(e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); v2.focus(); } });
+});
+
+function gV(id){ return Number(document.getElementById(id).value) || 0; }
+function sV(id, v){ document.getElementById(id).value = Math.round(v); }
+
+function calculate() {
+    let pOut = `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:13px; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 10px;"><div><strong>Customer:</strong> ${document.getElementById('cn').value}</div><div><strong>Address:</strong> ${document.getElementById('ad').value}</div><div style="grid-column: span 2"><strong>Project:</strong> ${document.getElementById('pi').value}</div></div>`;
+    pOut += `<table><tr style="background:#eee"><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">VA</th><th style="text-align:right">Total</th><th style="text-align:center">Gen</th></tr>`;
+
+    const sqVA = gV("sq") * 3, saVA = gV("sa_q") * 1500, laVA = gV("l_q") * 1500;
+    sV("t_sq", sqVA); sV("t_sa", saVA); sV("t_l", laVA);
+    if(sqVA > 0) pOut += `<tr><td>Square Footage</td><td style="text-align:center">${gV("sq")}</td><td style="text-align:right">3</td><td style="text-align:right">${sqVA}</td><td></td></tr>`;
+    if(saVA > 0) pOut += `<tr><td>Small Appliance</td><td style="text-align:center">${gV("sa_q")}</td><td style="text-align:right">1500</td><td style="text-align:right">${saVA}</td><td></td></tr>`;
+    if(laVA > 0) pOut += `<tr><td>Laundry Circuit</td><td style="text-align:center">${gV("l_q")}</td><td style="text-align:right">1500</td><td style="text-align:right">${laVA}</td><td></td></tr>`;
+
+    let appSum = 0, checkedVA = 0, checkedCount = 0;
+    apps.forEach(a => {
+        let id = a.replace(/\s+/g, ''), q = gV("q_"+id), uv = gV("v_"+id), v = q * uv;
+        sV("t_"+id, v);
+        if(v > 0) { appSum += v; let isGen = document.getElementById("g_"+id).checked; pOut += `<tr><td>${a}</td><td style="text-align:center">${q}</td><td style="text-align:right">${uv}</td><td style="text-align:right">${v}</td><td style="text-align:center">${isGen ? 'X' : ''}</td></tr>`; if(isGen) { checkedVA += v; checkedCount += q; } }
+    });
+
+    const qCustApp = gV("q_custom_app"), vCustApp = qCustApp * gV("v_custom_app");
+    sV("t_custom_app", vCustApp);
+    if(vCustApp > 0) { appSum += vCustApp; let label = document.getElementById("app_custom_label").value || "Custom Appliance", isGen = document.getElementById("g_custom_app").checked; pOut += `<tr><td>${label}</td><td style="text-align:center">${qCustApp}</td><td style="text-align:right">${gV("v_custom_app")}</td><td style="text-align:right">${vCustApp}</td><td style="text-align:center">${isGen ? 'X' : ''}</td></tr>`; if(isGen) { checkedVA += vCustApp; checkedCount += qCustApp; } }
+
+    let combinedGeneral = sqVA + saVA + laVA + appSum;
+    sV("t_pre_derate", combinedGeneral);
+    pOut += `<tr style="background:#f2f2f2"><td><strong>Total General & Appliance Load</strong></td><td colspan="2"></td><td style="text-align:right"><strong>${combinedGeneral}</strong></td><td></td></tr>`;
+    let totalGeneralDerated = Math.min(combinedGeneral, 10000) + (Math.max(combinedGeneral - 10000, 0) * 0.4);
+    pOut += `<tr style="background:#f9f9f9"><td><strong>Gen. Load Derated (10k @ 100% + Rem @ 40%)</strong></td><td colspan="3" style="text-align:right"><strong>${Math.round(totalGeneralDerated)} VA</strong></td><td></td></tr>`;
+
+    // HVAC Logic
+    let pairLargerSum = 0;
+    hvacPairs.forEach(p => {
+        let vAC = gV("q_"+p.id1) * gV("v_"+p.id1), vHT = gV("q_"+p.id2) * gV("v_"+p.id2) * 0.65;
+        pairLargerSum += Math.max(vAC, vHT);
+    });
+    
+    const h40VA = gV("q_h40") * gV("v_h40") * 0.4;
+    let finalHVAC = Math.max(pairLargerSum, h40VA);
+    let hvacLabel = (h40VA > pairLargerSum) ? "Heat @ 40% (Larger Load)" : "HVAC (Larger of AC/Heat @ 65%)";
+    
+    sV("t_h40", h40VA);
+    pOut += `<tr><td>${hvacLabel}</td><td colspan="2"></td><td style="text-align:right">${Math.round(finalHVAC)}</td><td style="text-align:center">${(document.getElementById("g_ac1").checked || document.getElementById("g_h40").checked) ? 'X' : ''}</td></tr>`;
+    if(document.getElementById("g_ac1").checked || document.getElementById("g_h40").checked) { checkedVA += finalHVAC; checkedCount++; }
+
+    const evVA = gV("ev_q") * Math.max(7200, gV("ev_v")); sV("t_ev", evVA);
+    if(evVA > 0) { let isGen = document.getElementById("g_ev").checked; pOut += `<tr><td>EV Charger</td><td style="text-align:center">${gV("ev_q")}</td><td style="text-align:right">${Math.max(7200, gV("ev_v"))}</td><td style="text-align:right">${evVA}</td><td style="text-align:center">${isGen ? 'X' : ''}</td></tr>`; if(isGen) { checkedVA += evVA; checkedCount++; } }
+
+    const contVA = gV("cont_q") * gV("cont_v"); sV("t_cont", contVA);
+    if(contVA > 0) { let label = document.getElementById("cont_label").value || "Custom Cont.", isGen = document.getElementById("g_cont").checked; pOut += `<tr><td>${label}</td><td style="text-align:center">${gV("cont_q")}</td><td style="text-align:right">${gV("cont_v")}</td><td style="text-align:right">${contVA}</td><td style="text-align:center">${isGen ? 'X' : ''}</td></tr>`; if(isGen) { checkedVA += contVA; checkedCount++; } }
+
+    const totalServiceVA = totalGeneralDerated + finalHVAC + evVA + contVA, vlt = gV("volt") || 240;
+    const managedGenVA = totalServiceVA - checkedVA;
+    sV("r_svc_box", totalServiceVA / vlt);
+    document.getElementById("r_svc_text").textContent = Math.round(totalServiceVA) + " VA";
+    document.getElementById("r_gen_text").textContent = Math.round(managedGenVA) + " VA";
+
+    pOut += `</table><br><div class="res-summary"><strong>TOTAL CALCULATED LOAD:</strong> ${Math.round(totalServiceVA)} VA<br><strong>MINIMUM SERVICE AMPACITY:</strong> ${Math.round(totalServiceVA / vlt)} Amps<br><strong>GENERATOR MANAGED:</strong> ${Math.round(checkedVA)} VA<br><strong>GENERATOR CALCULATED LOAD:</strong> ${Math.round(managedGenVA)} VA<br><strong>GENERATOR AMPACITY:</strong> ${Math.round(managedGenVA / vlt)} Amps<br><br></div>`;
+    document.getElementById("printContent").innerHTML = pOut;
+    document.getElementById("printCard").style.display = "block";
+}
+</script>
+</body>
+</html>
