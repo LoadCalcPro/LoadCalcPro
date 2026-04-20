@@ -196,12 +196,12 @@ function calculate() {
     let totalGeneralDerated = Math.min(combinedGeneral, 10000) + (Math.max(combinedGeneral - 10000, 0) * 0.4);
     pOut += `<tr style="background:#f9f9f9"><td><strong>Gen. Load Derated (10k @ 100% + Rem @ 40%)</strong></td><td colspan="3" style="text-align:right"><strong>${Math.round(totalGeneralDerated)} VA</strong></td><td></td></tr>`;
 
-    // HVAC Logic
-    let pairLargerSum = 0;
     hvacPairs.forEach(p => {
-        let vAC = gV("q_"+p.id1) * gV("v_"+p.id1), vHT = gV("q_"+p.id2) * gV("v_"+p.id2) * 0.65;
-        pairLargerSum += Math.max(vAC, vHT);
-    });
+    const q1 = document.getElementById("q_" + p.id1), v1 = document.getElementById("v_" + p.id1), q2 = document.getElementById("q_" + p.id2), v2 = document.getElementById("v_" + p.id2);
+    q1.addEventListener('keydown', (e) => { if(e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); v1.focus(); } });
+    v1.addEventListener('keydown', (e) => { if(e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); q2.focus(); } });
+    q2.addEventListener('keydown', (e) => { if(e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); v2.focus(); } });
+});
     
     const h40VA = gV("q_h40") * gV("v_h40") * 0.4;
     let finalHVAC = Math.max(pairLargerSum, h40VA);
