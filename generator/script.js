@@ -1751,11 +1751,21 @@ function restoreState(){
         document.getElementById(id);
 
       if(el){
-        el.value =
+        const restoredValue =
           value === null ||
           value === undefined
             ? ""
             : value;
+
+        const isQuantity =
+          /^q(?:6|7|[89]|[12][0-9]|30|3[7-9]|40|42|43|47)$/.test(id);
+
+        el.value =
+          isQuantity &&
+          restoredValue !== "" &&
+          Number(restoredValue) <= 0
+            ? ""
+            : restoredValue;
       }
     }
 
@@ -2881,6 +2891,31 @@ if(document.readyState === 'loading'){
   initializeInlinePlaceholders();
 }
 
+})();
+
+/* Quantity fields return to their Qty placeholder instead of retaining zero. */
+(function(){
+  'use strict';
+
+  function isQuantityInput(input){
+    if(!(input instanceof HTMLInputElement)||input.type!=='number'||input.readOnly){
+      return false;
+    }
+    return /^q(?:6|7|[89]|[12][0-9]|30|3[7-9]|40|42|43|47)$/.test(input.id)||
+      input.dataset.v522Field==='qty';
+  }
+
+  function clearZeroQuantity(input){
+    if(isQuantityInput(input)&&input.value!==''&&Number(input.value)<=0){
+      input.value='';
+    }
+  }
+
+  ['input','change','blur'].forEach(function(eventName){
+    document.addEventListener(eventName,function(event){
+      clearZeroQuantity(event.target);
+    },true);
+  });
 })();
 
 
