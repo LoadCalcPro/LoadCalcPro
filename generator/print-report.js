@@ -191,7 +191,16 @@ window.updatePrintRows=function(data){
   body+='<tr class="demand-breakdown-row"><td>Remainder at 40%</td><td></td><td></td><td class="number">'+num(serviceRemainder)+'</td><td class="number">'+num(generatorRemainder)+'</td></tr>';
   body+=totalRow('Demand Total',data.demandLoads.service,data.demandLoads.generator,'demand-total-row');
   let hvacRows=buildHVACRows();if(!hvacRows)hvacRows=[37,38,39,40].map(row=>loadRow(hvacLabel(row),qty('q'+row),vaForRow(row),out('e'+row),out('f'+row),row)).join('');if(hvacRows)body+=sectionRow('HVAC Load')+hvacRows;
-  let continuousRows='';continuousRows+=loadRow('EV Charger',qty('q43'),vaForRow(43),out('e43'),out('f43'),43);
+  let continuousRows='';
+  const ev=typeof window.getEVSystemState==='function'?window.getEVSystemState():null;
+  if(ev&&Array.isArray(ev.rows)){
+    ev.rows.forEach((item,index)=>{if(item.quantity>0&&item.va>0)continuousRows+=loadRow('EV Charger'+(index?' '+(index+1):'')+' — Connected',item.quantity,item.va,item.connected,0,null,'normal-load-row','')});
+    if(ev.connected>0)continuousRows+=totalRow('Connected EV Load',ev.connected,0,'subtotal-row');
+    if(ev.energyManaged&&ev.service>0)continuousRows+=totalRow('Combined EV Energy Management Maximum',ev.service,0,'subtotal-row');
+    if(ev.service>0)continuousRows+=totalRow('EV Load Used'+(ev.generatorManaged?' — Generator Managed':''),ev.service,ev.generator,'subtotal-row');
+  }else{
+    continuousRows+=loadRow('EV Charger',qty('q43'),vaForRow(43),out('e43'),out('f43'),43);
+  }
   continuousRows+=loadRow(value('d47')||'Additional Continuous Load (100%)',qty('q47'),vaForRow(47),out('e47'),out('f47'),47);
   continuousRows+=loadRow(value('d42')||'Additional Continuous Load (125%)',qty('q42'),vaForRow(42),out('e42'),out('f42'),42);
   if(data.largestMotor&&Number(data.largestMotor.additionalVA)>0)continuousRows+=loadRow((data.largestMotor.type||'Largest Motor')+' — Additional 25%','',data.largestMotor.additionalVA,data.largestMotor.additionalVA,data.largestMotor.additionalVA,null);
@@ -212,6 +221,7 @@ window.updatePrintRows=function(data){
 
 window.printCalculation=function(){
   if(typeof window.calculate==='function')window.calculate();
+  if(typeof window.validateEVSystemForPrint==='function'&&!window.validateEVSystemForPrint())return;
   window.print();
 };
 
