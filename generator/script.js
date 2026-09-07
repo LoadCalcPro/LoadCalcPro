@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 64228)
-Total output lines: 17251
-
 "use strict";
 
 function syncLargestMotorSection(){}
@@ -5001,7 +4998,6649 @@ window.hvacLoadCalculation =
             compressorWithSupplemental
               ? remainingVA(39)
               : 0
- …24228 tokens truncated…(
+          )
+    );
+
+    setOutput(
+      'f38',
+      coolingControls
+        ? 0
+        : remainingVA(38) *
+          0.65
+    );
+
+    setOutput(
+      'f40',
+      coolingControls
+        ? 0
+        : remainingVA(40) *
+          0.65
+    );
+
+    setOutput(
+      'f41',
+      0
+    );
+
+    return {
+      service:service,
+      generator:generator,
+      serviceAC:serviceAC,
+      generatorAC:generatorAC,
+      serviceHeating:
+        serviceHeating,
+      generatorHeating:
+        generatorHeat,
+      method:selectedMethod,
+      heatPumpReady:true,
+      compressorSupplemental:
+        hpCompressorSupplemental
+    };
+  };
+
+window.resetHeatingMethodSelection =
+  function(){
+
+    selectedMethod = '';
+
+    hpCompressorSupplemental = '';
+
+    activeHVACManagedRows =
+      new Set();
+
+    managedQuantities[41] = 0;
+
+    try{
+
+      localStorage.removeItem(
+        METHOD_KEY
+      );
+
+      localStorage.removeItem(
+        HP_COMPRESSOR_KEY
+      );
+
+    }catch(e){}
+
+    saveManagedQuantities();
+
+    updateMethodUI();
+
+    setManagedRowsActive([]);
+
+    sync40PercentManagedControls();
+  };
+
+function initialize(){
+
+  ensureMethodPanel();
+
+  ensure40Rows();
+
+  ensureHeatPumpQuestions();
+
+  selectedMethod =
+    readMethod();
+
+  hpCompressorSupplemental =
+    readHeatPumpAnswer();
+
+  updateMethodUI();
+
+  calculate();
+}
+
+if(
+  document.readyState ===
+  'loading'
+){
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    initialize
+  );
+
+}else{
+
+  initialize();
+}
+
+})();
+(function(){
+
+  function numberText(value){
+
+    const n =
+      Math.round(
+        Number(value) || 0
+      );
+
+    return n > 0
+      ? n.toLocaleString('en-US')
+      : '';
+  }
+
+  function classifyCards(){
+
+    document
+      .querySelectorAll('main .card')
+      .forEach(card=>{
+
+        const h =
+          card.querySelector(
+            '.card-heading'
+          );
+
+        const title =
+          (
+            h
+              ? h.textContent
+              : ''
+          )
+          .trim()
+          .toLowerCase();
+
+        if(
+          title.includes('project')
+        ){
+          card.classList.add(
+            'project-card'
+          );
+        }
+
+        if(
+          title.includes('general')
+        ){
+          card.classList.add(
+            'general-card'
+          );
+        }
+
+        if(
+          title.includes('appliance')
+        ){
+          card.classList.add(
+            'appliance-card'
+          );
+        }
+
+        if(
+          title.includes('hvac')
+        ){
+          card.classList.add(
+            'hvac-card'
+          );
+        }
+
+        if(
+          title.includes(
+            'service voltage'
+          )
+        ){
+          card.classList.add(
+            'voltage-card'
+          );
+        }
+      });
+  }
+
+  function addColumnHeader(
+    card,
+    includeInputLabels = true
+  ){
+
+    if(
+      !card ||
+      card.querySelector(
+        '.v3-column-header'
+      )
+    ){
+      return;
+    }
+
+    const body =
+      card.querySelector(
+        '.card-body'
+      );
+
+    if(!body){
+      return;
+    }
+
+    const header =
+      document.createElement(
+        'div'
+      );
+
+    header.className =
+      'v3-column-header';
+
+    header.innerHTML =
+      '<span>Description</span>' +
+      '<span>Quantity</span>' +
+      '<span>' +
+      (
+        includeInputLabels
+          ? 'VA'
+          : ''
+      ) +
+      '</span>' +
+      '<span>' +
+      (
+        includeInputLabels
+          ? 'Managed'
+          : ''
+      ) +
+      '</span>' +
+      '<span>Service Load</span>' +
+      '<span>Generator Load</span>';
+
+    const note =
+      body.querySelector(
+        '.section-note'
+      );
+
+    if(note){
+
+      note.insertAdjacentElement(
+        'afterend',
+        header
+      );
+
+    }else{
+
+      body.insertBefore(
+        header,
+        body.firstChild
+      );
+    }
+  }
+
+  function addDemandCard(){
+
+    if(
+      document.getElementById(
+        'v3DemandCard'
+      )
+    ){
+      return;
+    }
+
+    const appliance =
+      document.querySelector(
+        '.appliance-card'
+      );
+
+    if(!appliance){
+      return;
+    }
+
+    const section =
+      document.createElement(
+        'section'
+      );
+
+    section.className =
+      'card demand-card';
+
+    section.id =
+      'v3DemandCard';
+
+    section.innerHTML = `
+<h2 class="card-heading">
+Demand Load
+</h2>
+
+<div class="card-body">
+
+<div class="v3-column-header">
+<span>Description</span>
+<span></span>
+<span></span>
+<span></span>
+<span>Service Load</span>
+<span>Generator Load</span>
+</div>
+
+<div class="demand-row">
+<span class="demand-description">
+First 10,000 at 100%
+</span>
+<span
+id="demandServiceFirst"
+class="demand-service">
+</span>
+<span
+id="demandGeneratorFirst"
+class="demand-generator">
+</span>
+</div>
+
+<div class="demand-row">
+<span class="demand-description">
+Remainder at 40%
+</span>
+<span
+id="demandServiceRemainder"
+class="demand-service">
+</span>
+<span
+id="demandGeneratorRemainder"
+class="demand-generator">
+</span>
+</div>
+
+<div class="demand-row total">
+<span class="demand-description">
+Demand Total
+</span>
+<span
+id="demandServiceTotal"
+class="demand-service">
+</span>
+<span
+id="demandGeneratorTotal"
+class="demand-generator">
+</span>
+</div>
+
+</div>`;
+
+    appliance.insertAdjacentElement(
+      'afterend',
+      section
+    );
+  }
+
+  function removeOutputVA(){
+
+    document
+      .querySelectorAll(
+        '.output-label'
+      )
+      .forEach(el=>{
+
+        el.textContent =
+          el.textContent
+            .replace(
+              /\s+VA\s*$/i,
+              ''
+            )
+            .trim();
+      });
+  }
+
+  function updateDemandDisplay(
+    serviceCombined,
+    generatorCombined,
+    serviceTotal,
+    generatorTotal
+  ){
+
+    const sFirst =
+      Math.min(
+        Math.max(
+          serviceCombined,
+          0
+        ),
+        10000
+      );
+
+    const gFirst =
+      Math.min(
+        Math.max(
+          generatorCombined,
+          0
+        ),
+        10000
+      );
+
+    const sRem =
+      Math.max(
+        serviceCombined -
+        10000,
+        0
+      ) * .40;
+
+    const gRem =
+      Math.max(
+        generatorCombined -
+        10000,
+        0
+      ) * .40;
+
+    const values = {
+      demandServiceFirst:
+        sFirst,
+
+      demandGeneratorFirst:
+        gFirst,
+
+      demandServiceRemainder:
+        sRem,
+
+      demandGeneratorRemainder:
+        gRem,
+
+      demandServiceTotal:
+        serviceTotal,
+
+      demandGeneratorTotal:
+        generatorTotal
+    };
+
+    Object
+      .entries(values)
+      .forEach(
+        ([id,val])=>{
+
+          const el =
+            document.getElementById(
+              id
+            );
+
+          if(el){
+            el.textContent =
+              numberText(val);
+          }
+        }
+      );
+  }
+
+  // Preserve the existing demand mathematics
+  // while exposing its components.
+
+  window.combinedDemandCalculation =
+    function(
+      generalLoad,
+      applianceLoads
+    ){
+
+      const serviceCombined =
+        generalLoad +
+        applianceLoads.service;
+
+      const generatorCombined =
+        generalLoad +
+        applianceLoads.generator;
+
+      const serviceAfterDemand =
+        optionalMethodDemand(
+          serviceCombined
+        );
+
+      const generatorAfterDemand =
+        optionalMethodDemand(
+          generatorCombined
+        );
+
+      setOutput(
+        'e35',
+        serviceAfterDemand
+      );
+
+      setOutput(
+        'f35',
+        generatorAfterDemand
+      );
+
+      updateDemandDisplay(
+        serviceCombined,
+        generatorCombined,
+        serviceAfterDemand,
+        generatorAfterDemand
+      );
+
+      return {
+        service:
+          serviceAfterDemand,
+
+        generator:
+          generatorAfterDemand,
+
+        serviceCombined:
+          serviceCombined,
+
+        generatorCombined:
+          generatorCombined
+      };
+    };
+
+  const originalUpdatePrintRows =
+    window.updatePrintRows;
+
+  window.updatePrintRows =
+    function(data){
+
+      originalUpdatePrintRows(
+        data
+      );
+
+      const table =
+        document.querySelector(
+          '#printReport .print-table'
+        );
+
+      if(!table){
+        return;
+      }
+
+      const tbody =
+        table.querySelector(
+          'tbody'
+        );
+
+      const tfoot =
+        table.querySelector(
+          'tfoot'
+        );
+
+      if(
+        !tbody ||
+        !tfoot
+      ){
+        return;
+      }
+
+      const serviceCombined =
+        (
+          data.demandLoads &&
+          Number.isFinite(
+            data.demandLoads
+              .serviceCombined
+          )
+        )
+          ? data.demandLoads
+              .serviceCombined
+          : (
+              readOutput('e8') +
+              readOutput('e31')
+            );
+
+      const generatorCombined =
+        (
+          data.demandLoads &&
+          Number.isFinite(
+            data.demandLoads
+              .generatorCombined
+          )
+        )
+          ? data.demandLoads
+              .generatorCombined
+          : (
+              readOutput('f8') +
+              readOutput('f31')
+            );
+
+      const sFirst =
+        Math.min(
+          Math.max(
+            serviceCombined,
+            0
+          ),
+          10000
+        );
+
+      const gFirst =
+        Math.min(
+          Math.max(
+            generatorCombined,
+            0
+          ),
+          10000
+        );
+
+      const sRem =
+        Math.max(
+          serviceCombined -
+          10000,
+          0
+        ) * .40;
+
+      const gRem =
+        Math.max(
+          generatorCombined -
+          10000,
+          0
+        ) * .40;
+
+      /* Move HVAC and continuous-load
+         detail rows below the demand
+         calculation, matching the order
+         in which they are added to the
+         final service load. */
+
+      const hvacLabels =
+        new Set();
+
+      [37,38,39,40]
+        .forEach(row=>{
+
+          const label =
+            (
+              typeof window
+                .getHVACRowLabel ===
+                'function'
+            )
+              ? window
+                  .getHVACRowLabel(
+                    row
+                  )
+              : (
+                  row === 37 ||
+                  row === 39
+                    ? 'Air Conditioning'
+                    : 'Heating'
+                );
+
+          if(label){
+            hvacLabels.add(
+              String(label).trim()
+            );
+          }
+        });
+
+      const continuous100Description =
+        String(
+          (
+            document.getElementById(
+              'd47'
+            ) || {}
+          ).value || ''
+        ).trim() ||
+        'Additional Continuous Load (100%)';
+
+      const continuousDescription =
+        String(
+          (
+            document.getElementById(
+              'd42'
+            ) || {}
+          ).value || ''
+        ).trim() ||
+        'Additional Continuous Load (125%)';
+
+      const hvacRows = [];
+
+      const continuousRows = [];
+
+      Array.from(
+        tbody.querySelectorAll(
+          'tr'
+        )
+      ).forEach(row=>{
+
+        const firstCell =
+          row.querySelector(
+            'td'
+          );
+
+        const label =
+          firstCell
+            ? firstCell.textContent
+                .trim()
+            : '';
+
+        if(
+          hvacLabels.has(label)
+        ){
+
+          hvacRows.push(
+            row.outerHTML
+          );
+
+          row.remove();
+
+        }else if(
+          label === 'EV Charger' ||
+          label ===
+            continuous100Description ||
+          label ===
+            continuousDescription
+        ){
+
+          continuousRows.push(
+            row.outerHTML
+          );
+
+          row.remove();
+        }
+      });
+
+      let footerHTML =
+        `<tr class="print-section-row">
+<td colspan="4">Demand Load</td>
+</tr>
+
+<tr class="demand-breakdown-row">
+<td>First 10,000 at 100%</td>
+<td></td>
+<td class="number">
+${numberText(sFirst)}
+</td>
+<td class="number">
+${numberText(gFirst)}
+</td>
+</tr>
+
+<tr class="demand-breakdown-row">
+<td>Remainder at 40%</td>
+<td></td>
+<td class="number">
+${numberText(sRem)}
+</td>
+<td class="number">
+${numberText(gRem)}
+</td>
+</tr>
+
+<tr class="demand-total-row">
+<td><strong>Demand Total</strong></td>
+<td></td>
+<td class="number">
+<strong>
+${numberText(
+  data.demandLoads.service
+)}
+</strong>
+</td>
+<td class="number">
+<strong>
+${numberText(
+  data.demandLoads.generator
+)}
+</strong>
+</td>
+</tr>`;
+
+      if(hvacRows.length){
+
+        footerHTML +=
+          `<tr class="print-section-row">
+<td colspan="4">HVAC Load</td>
+</tr>` +
+          hvacRows.join('');
+      }
+
+      if(
+        continuousRows.length
+      ){
+
+        footerHTML +=
+          `<tr class="print-section-row">
+<td colspan="4">Continuous Loads</td>
+</tr>` +
+          continuousRows.join('');
+      }
+
+      footerHTML +=
+        `<tr class="final-total-row">
+<td><strong>Total VA</strong></td>
+<td></td>
+<td class="number">
+<strong>
+${numberText(
+  data.serviceTotalVA
+)}
+</strong>
+</td>
+<td class="number">
+<strong>
+${numberText(
+  data.generatorTotalVA
+)}
+</strong>
+</td>
+</tr>
+
+<tr class="final-amps-row">
+<td><strong>Calculated Amps</strong></td>
+<td></td>
+<td class="number">
+<strong>
+${Math.ceil(
+  data.serviceCurrent
+)} A
+</strong>
+</td>
+<td class="number">
+<strong>
+${Math.ceil(
+  data.generatorCurrent
+)} A
+</strong>
+</td>
+</tr>`;
+
+      tfoot.innerHTML =
+        footerHTML;
+
+      table
+        .querySelectorAll('th')
+        .forEach(th=>{
+
+          th.textContent =
+            th.textContent
+              .replace(
+                'Service VA',
+                'Service Load'
+              )
+              .replace(
+                'Generator VA',
+                'Generator Load'
+              );
+        });
+    };
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    function(){
+
+      classifyCards();
+
+      addColumnHeader(
+        document.querySelector(
+          '.general-card'
+        ),
+        false
+      );
+
+      addColumnHeader(
+        document.querySelector(
+          '.appliance-card'
+        ),
+        true
+      );
+
+      addColumnHeader(
+        document.querySelector(
+          '.hvac-card'
+        ),
+        true
+      );
+
+      addDemandCard();
+
+      removeOutputVA();
+
+      setTimeout(
+        function(){
+
+          removeOutputVA();
+
+          calculate();
+        },
+        0
+      );
+    }
+  );
+
+})();
+(function(){
+
+  function managedCount(){
+
+    if(
+      typeof window
+        .getCompleteManagedLoadCount ===
+      'function'
+    ){
+      return window
+        .getCompleteManagedLoadCount();
+    }
+
+    if(
+      typeof applicableManagedLoadCount ===
+      'function'
+    ){
+      return applicableManagedLoadCount();
+    }
+
+    let total = 0;
+
+    (
+      window.MANAGED_ROWS || []
+    ).forEach(function(row){
+
+      if(
+        typeof managedQuantity ===
+        'function'
+      ){
+        total += managedQuantity(row);
+      }
+    });
+
+    return total;
+  }
+
+  function addManagedCountToCalculator(){
+
+    const card =
+      document.querySelector(
+        '.result-card.generator'
+      );
+
+    if(!card){
+      return;
+    }
+
+    let line =
+      card.querySelector(
+        '.managed-loads-count'
+      );
+
+    if(!line){
+
+      line =
+        document.createElement(
+          'div'
+        );
+
+      line.className =
+        'managed-loads-count';
+
+      card.appendChild(line);
+    }
+
+    line.textContent =
+      'Managed Loads: ' +
+      managedCount();
+  }
+
+  function numText(value){
+
+    const n =
+      Math.round(
+        Number(value) || 0
+      );
+
+    return n > 0
+      ? n.toLocaleString(
+          'en-US'
+        )
+      : '';
+  }
+
+  function qty(row){
+
+    return (
+      typeof positiveQuantity ===
+      'function'
+    )
+      ? positiveQuantity(
+          'q' + row
+        )
+      : 0;
+  }
+
+  function output(id){
+
+    return (
+      typeof readOutput ===
+      'function'
+    )
+      ? readOutput(id)
+      : 0;
+  }
+
+  function rowHTML(
+    label,
+    quantity,
+    service,
+    generator
+  ){
+
+    if(
+      Number(service) <= 0 &&
+      Number(generator) <= 0
+    ){
+      return '';
+    }
+
+    return (
+      '<tr>' +
+      '<td>' +
+      escapeHTML(label) +
+      '</td>' +
+      '<td class="quantity">' +
+      (quantity || '') +
+      '</td>' +
+      '<td class="number">' +
+      numText(service) +
+      '</td>' +
+      '<td class="number">' +
+      numText(generator) +
+      '</td>' +
+      '</tr>'
+    );
+  }
+
+  function buildHVACRows(data){
+
+    /*
+      V5.14 separate HVAC sections store
+      their values independently from the
+      hidden legacy q37-q40 inputs.
+
+      Build print rows from the active
+      V5.7 data.
+    */
+
+    let selected = [];
+
+    let sectionData = {};
+
+    let sectionManaged = {};
+
+    try{
+
+      selected =
+        JSON.parse(
+          localStorage.getItem(
+            'loadcalcpro_hvac_selected_methods_v1'
+          ) || '[]'
+        );
+
+      sectionData =
+        JSON.parse(
+          localStorage.getItem(
+            'loadcalcpro_hvac_method_sections_v57'
+          ) || '{}'
+        );
+
+      sectionManaged =
+        JSON.parse(
+          localStorage.getItem(
+            'loadcalcpro_hvac_method_managed_v57'
+          ) || '{}'
+        );
+
+    }catch(e){
+
+      selected = [];
+
+      sectionData = {};
+
+      sectionManaged = {};
+    }
+
+    if(
+      !Array.isArray(selected)
+    ){
+      selected = [];
+    }
+
+    const hp =
+      localStorage.getItem(
+        'loadcalcpro_hvac_multi_hp_answer_v1'
+      ) || '';
+
+    function sectionValue(
+      method,
+      type
+    ){
+
+      const d =
+        sectionData[
+          method + '_' + type
+        ] || {};
+
+      const q =
+        Math.max(
+          0,
+          Math.floor(
+            Number(d.qty) || 0
+          )
+        );
+
+      const va =
+        Math.max(
+          0,
+          Number(d.va) || 0
+        );
+
+      const service =
+        q * va;
+
+      const generator =
+        sectionManaged[
+          method + '_' + type
+        ]
+          ? 0
+          : service;
+
+      return {
+        q:q,
+        service:service,
+        generator:generator
+      };
+    }
+
+    const rows = [];
+
+    selected.forEach(
+      function(method){
+
+        const ac =
+          sectionValue(
+            method,
+            'ac'
+          );
+
+        const heat =
+          sectionValue(
+            method,
+            'heat'
+          );
+
+        if(
+          method ===
+          'central65'
+        ){
+
+          const heatS =
+            heat.service * .65;
+
+          const heatG =
+            heat.generator * .65;
+
+          if(
+            ac.service >= heatS
+          ){
+
+            rows.push(
+              rowHTML(
+                'Air Conditioning 100%',
+                ac.q,
+                ac.service,
+                ac.generator
+              )
+            );
+
+          }else{
+
+            rows.push(
+              rowHTML(
+                'Central Electric Heat 65%',
+                heat.q,
+                heatS,
+                heatG
+              )
+            );
+          }
+
+        }else if(
+          method ===
+          'separate40'
+        ){
+
+          const heatTypes = [
+            'heat',
+            'heat2',
+            'heat3',
+            'heat4'
+          ];
+
+          const heatRows =
+            heatTypes.map(
+              function(t){
+
+                return sectionValue(
+                  method,
+                  t
+                );
+              }
+            );
+
+          const heatService =
+            heatRows.reduce(
+              function(sum,r){
+
+                return (
+                  sum +
+                  r.service
+                );
+              },
+              0
+            );
+
+          const heatGenerator =
+            heatRows.reduce(
+              function(sum,r){
+
+                return (
+                  sum +
+                  r.generator
+                );
+              },
+              0
+            );
+
+          const heat40Service =
+            heatService * .40;
+
+          const heat40Generator =
+            heatGenerator * .40;
+
+          if(
+            ac.service >=
+            heat40Service
+          ){
+
+            rows.push(
+              rowHTML(
+                'Air Conditioning 100%',
+                ac.q,
+                ac.service,
+                ac.generator
+              )
+            );
+
+          }else{
+
+            heatRows.forEach(
+              function(r,i){
+
+                rows.push(
+                  rowHTML(
+                    'Separately Controlled Electric Heat Unit ' +
+                    (i + 1) +
+                    ' at 40%',
+                    r.q,
+                    r.service * .40,
+                    r.generator * .40
+                  )
+                );
+              }
+            );
+          }
+
+        }else if(
+          method ===
+          'heatpump'
+        ){
+
+          if(hp === 'yes'){
+
+            rows.push(
+              rowHTML(
+                'Heat Pump Compressor 100%',
+                ac.q,
+                ac.service,
+                ac.generator
+              )
+            );
+
+            rows.push(
+              rowHTML(
+                'Supplemental Electric Heat 65%',
+                heat.q,
+                heat.service * .65,
+                heat.generator * .65
+              )
+            );
+
+          }else if(
+            hp === 'no'
+          ){
+
+            rows.push(
+              rowHTML(
+                'Supplemental Electric Heat 65%',
+                heat.q,
+                heat.service * .65,
+                heat.generator * .65
+              )
+            );
+          }
+        }
+      }
+    );
+
+    if(rows.length){
+      return rows.join('');
+    }
+
+    /*
+      Legacy fallback for calculations
+      saved before the separate sections.
+    */
+
+    const method =
+      data.hvacLoads &&
+      data.hvacLoads.method
+        ? data.hvacLoads.method
+        : '';
+
+    if(
+      method === 'forty'
+    ){
+
+      const s =
+        output('e41');
+
+      const g =
+        output('f41');
+
+      if(
+        s > 0 ||
+        g > 0
+      ){
+
+        rows.push(
+          rowHTML(
+            'Heating 40%',
+            qty(38) + qty(40),
+            s,
+            g
+          )
+        );
+      }
+
+      [37,39].forEach(
+        function(r){
+
+          const s =
+            output(
+              'e' + r
+            );
+
+          const g =
+            output(
+              'f' + r
+            );
+
+          if(
+            s > 0 ||
+            g > 0
+          ){
+
+            rows.push(
+              rowHTML(
+                'Air Conditioning 100%',
+                qty(r),
+                s,
+                g
+              )
+            );
+          }
+        }
+      );
+
+      return rows.join('');
+    }
+
+    if(
+      method ===
+      'heatpump'
+    ){
+
+      [37,39].forEach(
+        function(r){
+
+          const s =
+            output(
+              'e' + r
+            );
+
+          const g =
+            output(
+              'f' + r
+            );
+
+          if(
+            s > 0 ||
+            g > 0
+          ){
+
+            rows.push(
+              rowHTML(
+                'Heat Pump Compressor 100%',
+                qty(r),
+                s,
+                g
+              )
+            );
+          }
+        }
+      );
+
+      [38,40].forEach(
+        function(r){
+
+          const s =
+            output(
+              'e' + r
+            );
+
+          const g =
+            output(
+              'f' + r
+            );
+
+          if(
+            s > 0 ||
+            g > 0
+          ){
+
+            rows.push(
+              rowHTML(
+                'Supplemental Electric Heat 65%',
+                qty(r),
+                s,
+                g
+              )
+            );
+          }
+        }
+      );
+
+      return rows.join('');
+    }
+
+    [37,39].forEach(
+      function(r){
+
+        const s =
+          output(
+            'e' + r
+          );
+
+        const g =
+          output(
+            'f' + r
+          );
+
+        if(
+          s > 0 ||
+          g > 0
+        ){
+
+          rows.push(
+            rowHTML(
+              'Air Conditioning 100%',
+              qty(r),
+              s,
+              g
+            )
+          );
+        }
+      }
+    );
+
+    [38,40].forEach(
+      function(r){
+
+        const s =
+          output(
+            'e' + r
+          );
+
+        const g =
+          output(
+            'f' + r
+          );
+
+        if(
+          s > 0 ||
+          g > 0
+        ){
+
+          rows.push(
+            rowHTML(
+              'Heating 65%',
+              qty(r),
+              s,
+              g
+            )
+          );
+        }
+      }
+    );
+
+    return rows.join('');
+  }
+
+  const priorUpdatePrintRows =
+    window.updatePrintRows;
+
+  window.updatePrintRows =
+    function(data){
+
+      priorUpdatePrintRows(
+        data
+      );
+
+      addManagedCountToCalculator();
+
+      const report =
+        document.getElementById(
+          'printReport'
+        );
+
+      if(!report){
+        return;
+      }
+
+      const summary =
+        report.querySelector(
+          '.print-method-details'
+        );
+
+      if(summary){
+
+        summary.innerHTML =
+          '<div class="summary-item">' +
+          '<strong>Service Voltage</strong>' +
+          '<span>' +
+          numText(data.voltage) +
+          ' V</span>' +
+          '</div>' +
+
+          '<div class="summary-item">' +
+          '<strong>Managed Loads</strong>' +
+          '<span>' +
+          managedCount() +
+          '</span>' +
+          '</div>' +
+
+          '<div class="summary-item">' +
+          '<strong>Service Total</strong>' +
+          '<span>' +
+          numText(
+            data.serviceTotalVA
+          ) +
+          ' VA / ' +
+          Math.ceil(
+            data.serviceCurrent
+          ) +
+          ' A</span>' +
+          '</div>' +
+
+          '<div class="summary-item">' +
+          '<strong>Generator Total</strong>' +
+          '<span>' +
+          numText(
+            data.generatorTotalVA
+          ) +
+          ' VA / ' +
+          Math.ceil(
+            data.generatorCurrent
+          ) +
+          ' A</span>' +
+          '</div>';
+      }
+
+      const table =
+        report.querySelector(
+          '.print-table'
+        );
+
+      if(!table){
+        return;
+      }
+
+      const tfoot =
+        table.querySelector(
+          'tfoot'
+        );
+
+      if(!tfoot){
+        return;
+      }
+
+      const serviceCombined =
+        (
+          data.demandLoads &&
+          Number.isFinite(
+            data.demandLoads
+              .serviceCombined
+          )
+        )
+          ? data.demandLoads
+              .serviceCombined
+          : (
+              output('e8') +
+              output('e31')
+            );
+
+      const generatorCombined =
+        (
+          data.demandLoads &&
+          Number.isFinite(
+            data.demandLoads
+              .generatorCombined
+          )
+        )
+          ? data.demandLoads
+              .generatorCombined
+          : (
+              output('f8') +
+              output('f31')
+            );
+
+      const sFirst =
+        Math.min(
+          Math.max(
+            serviceCombined,
+            0
+          ),
+          10000
+        );
+
+      const gFirst =
+        Math.min(
+          Math.max(
+            generatorCombined,
+            0
+          ),
+          10000
+        );
+
+      const sRem =
+        Math.max(
+          serviceCombined -
+          10000,
+          0
+        ) * .40;
+
+      const gRem =
+        Math.max(
+          generatorCombined -
+          10000,
+          0
+        ) * .40;
+
+      let html =
+        '<tr class="print-section-row">' +
+        '<td colspan="4">Demand Load</td>' +
+        '</tr>' +
+
+        '<tr>' +
+        '<td>First 10,000 at 100%</td>' +
+        '<td></td>' +
+        '<td class="number">' +
+        numText(sFirst) +
+        '</td>' +
+        '<td class="number">' +
+        numText(gFirst) +
+        '</td>' +
+        '</tr>' +
+
+        '<tr>' +
+        '<td>Remainder at 40%</td>' +
+        '<td></td>' +
+        '<td class="number">' +
+        numText(sRem) +
+        '</td>' +
+        '<td class="number">' +
+        numText(gRem) +
+        '</td>' +
+        '</tr>' +
+
+        '<tr>' +
+        '<td><strong>Demand Total</strong></td>' +
+        '<td></td>' +
+        '<td class="number"><strong>' +
+        numText(
+          data.demandLoads.service
+        ) +
+        '</strong></td>' +
+        '<td class="number"><strong>' +
+        numText(
+          data.demandLoads.generator
+        ) +
+        '</strong></td>' +
+        '</tr>';
+
+      const hvac =
+        buildHVACRows(data);
+
+      if(hvac){
+
+        html +=
+          '<tr class="print-section-row">' +
+          '<td colspan="4">HVAC Load</td>' +
+          '</tr>' +
+          hvac;
+      }
+
+      let continuous = '';
+
+      continuous +=
+        rowHTML(
+          'EV Charger',
+          qty(43),
+          output('e43'),
+          output('f43')
+        );
+
+      const desc100 =
+        String(
+          (
+            document.getElementById(
+              'd47'
+            ) || {}
+          ).value || ''
+        ).trim() ||
+        'Additional Continuous Load (100%)';
+
+      continuous +=
+        rowHTML(
+          desc100,
+          qty(47),
+          output('e47'),
+          output('f47')
+        );
+
+      const desc =
+        String(
+          (
+            document.getElementById(
+              'd42'
+            ) || {}
+          ).value || ''
+        ).trim() ||
+        'Additional Continuous Load (125%)';
+
+      continuous +=
+        rowHTML(
+          desc,
+          qty(42),
+          output('e42'),
+          output('f42')
+        );
+
+      if(
+        data.largestMotor &&
+        data.largestMotor
+          .additionalVA > 0
+      ){
+
+        continuous +=
+          rowHTML(
+            data.largestMotor.type +
+            ' — Additional 25%',
+            '',
+            data.largestMotor
+              .additionalVA,
+            data.largestMotor
+              .additionalVA
+          );
+      }
+
+      if(continuous){
+
+        html +=
+          '<tr class="print-section-row">' +
+          '<td colspan="4">Continuous Loads</td>' +
+          '</tr>' +
+          continuous;
+      }
+
+      html +=
+        '<tr class="final-total-row">' +
+        '<td><strong>Total VA</strong></td>' +
+        '<td></td>' +
+        '<td class="number"><strong>' +
+        numText(
+          data.serviceTotalVA
+        ) +
+        '</strong></td>' +
+        '<td class="number"><strong>' +
+        numText(
+          data.generatorTotalVA
+        ) +
+        '</strong></td>' +
+        '</tr>' +
+
+        '<tr class="final-amps-row">' +
+        '<td><strong>Calculated Amps</strong></td>' +
+        '<td></td>' +
+        '<td class="number"><strong>' +
+        Math.ceil(
+          data.serviceCurrent
+        ) +
+        ' A</strong></td>' +
+        '<td class="number"><strong>' +
+        Math.ceil(
+          data.generatorCurrent
+        ) +
+        ' A</strong></td>' +
+        '</tr>';
+
+      tfoot.innerHTML =
+        html;
+
+      if(
+        summary &&
+        table
+      ){
+        table.insertAdjacentElement(
+          'afterend',
+          summary
+        );
+      }
+    };
+
+  function initialize(){
+
+    addManagedCountToCalculator();
+
+    const target =
+      document.getElementById(
+        'generatorAmps'
+      );
+
+    if(
+      target &&
+      window.MutationObserver
+    ){
+
+      new MutationObserver(
+        addManagedCountToCalculator
+      ).observe(
+        target,
+        {
+          childList:true,
+          characterData:true,
+          subtree:true
+        }
+      );
+    }
+
+    document.addEventListener(
+      'click',
+      function(){
+
+        setTimeout(
+          addManagedCountToCalculator,
+          0
+        );
+      }
+    );
+
+    document.addEventListener(
+      'input',
+      function(){
+
+        setTimeout(
+          addManagedCountToCalculator,
+          0
+        );
+      }
+    );
+  }
+
+  if(
+    document.readyState ===
+    'loading'
+  ){
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      initialize
+    );
+
+  }else{
+
+    initialize();
+  }
+
+})();
+(function(){
+
+  function valueFrom(id){
+
+    const el =
+      document.getElementById(id);
+
+    const n =
+      Number(
+        String(
+          el &&
+          el.textContent ||
+          ''
+        ).replace(
+          /[^0-9.-]/g,
+          ''
+        )
+      );
+
+    return Number.isFinite(n)
+      ? n
+      : 0;
+  }
+
+  function fmt(n){
+
+    return Math.round(
+      n
+    ).toLocaleString(
+      'en-US'
+    );
+  }
+
+  function managedCount(){
+
+    if(
+      typeof window
+        .applicableManagedLoadCount ===
+      'function'
+    ){
+      return window
+        .applicableManagedLoadCount();
+    }
+
+    let total = 0;
+
+    if(
+      Array.isArray(
+        window.MANAGED_ROWS
+      )
+    ){
+
+      window.MANAGED_ROWS
+        .forEach(function(r){
+
+          if(
+            typeof window
+              .managedQuantity ===
+            'function'
+          ){
+            total +=
+              window.managedQuantity(
+                r
+              );
+          }
+        });
+    }
+
+    return total;
+  }
+
+  function sync(){
+
+   const service =
+  valueFrom('e35') +
+  valueFrom('e44') +
+  valueFrom('e45');
+
+const generator =
+  valueFrom('f35') +
+  valueFrom('f44') +
+  valueFrom('f45');
+
+    const s =
+      document.getElementById(
+        'serviceTotalVAView'
+      );
+
+    const g =
+      document.getElementById(
+        'generatorTotalVAView'
+      );
+
+    const m =
+      document.getElementById(
+        'bottomManagedLoadCount'
+      );
+
+    if(s){
+      s.textContent =
+        fmt(service);
+    }
+
+    if(g){
+      g.textContent =
+        fmt(generator);
+    }
+
+    if(m){
+      m.textContent =
+        String(
+          managedCount()
+        );
+    }
+  }
+
+  function start(){
+
+    sync();
+
+    [
+      'serviceAmps',
+      'generatorAmps',
+      'e35',
+      'f35',
+      'e44',
+      'f44'
+    ].forEach(function(id){
+
+      const el =
+        document.getElementById(
+          id
+        );
+
+      if(
+        el &&
+        window.MutationObserver
+      ){
+
+        new MutationObserver(
+          sync
+        ).observe(
+          el,
+          {
+            childList:true,
+            characterData:true,
+            subtree:true
+          }
+        );
+      }
+    });
+
+    document.addEventListener(
+      'input',
+      function(){
+
+        setTimeout(
+          sync,
+          0
+        );
+      }
+    );
+
+    document.addEventListener(
+      'click',
+      function(){
+
+        setTimeout(
+          sync,
+          0
+        );
+      }
+    );
+  }
+
+  if(
+    document.readyState ===
+    'loading'
+  ){
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      start
+    );
+
+  }else{
+
+    start();
+  }
+
+})();
+(function(){
+
+  function restore(){
+
+    const version =
+      document.querySelector(
+        '.app-version'
+      );
+
+    if(version){
+      version.textContent =
+        'NEC 2023 | Version 2.0 — V5.41 Auto Save Restore Fixed';
+    }
+
+    const buttons =
+      document.querySelectorAll(
+        '.header-actions button'
+      );
+
+    if(buttons[0]){
+      buttons[0].textContent =
+        'Calculators';
+    }
+
+    if(buttons[1]){
+      buttons[1].textContent =
+        'Print / PDF';
+    }
+
+    if(buttons[2]){
+      buttons[2].textContent =
+        'New Calculation';
+    }
+  }
+
+  if(
+    document.readyState ===
+    'loading'
+  ){
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      restore
+    );
+
+  }else{
+
+    restore();
+  }
+
+})();
+
+
+(function(){
+
+'use strict';
+
+const MULTI_KEY =
+  'loadcalcpro_hvac_multiple_selector_v1';
+
+const METHODS_KEY =
+  'loadcalcpro_hvac_selected_methods_v1';
+
+const HP_KEY =
+  'loadcalcpro_hvac_multi_hp_answer_v1';
+
+const VALID = [
+  'central65',
+  'separate40',
+  'heatpump'
+];
+
+let multiple = false;
+
+let selected =
+  new Set();
+
+let hpAnswer = '';
+
+let activeRows =
+  new Set();
+
+function num(id){
+
+  const e =
+    document.getElementById(id);
+
+  const n =
+    Number(
+      e ? e.value : 0
+    );
+
+  return (
+    Number.isFinite(n) &&
+    n > 0
+  )
+    ? n
+    : 0;
+}
+
+function rowVA(r){
+
+  return (
+    num('q' + r) *
+    num('v' + r)
+  );
+}
+
+function remain(r){
+
+  const total =
+    Math.floor(
+      num('q' + r)
+    );
+
+  const managed =
+    typeof managedQuantity ===
+    'function'
+      ? managedQuantity(r)
+      : 0;
+
+  return Math.max(
+    total - managed,
+    0
+  ) * num('v' + r);
+}
+
+function load(){
+
+  try{
+
+    multiple =
+      localStorage.getItem(
+        MULTI_KEY
+      ) === '1';
+
+    const a =
+      JSON.parse(
+        localStorage.getItem(
+          METHODS_KEY
+        ) || '[]'
+      );
+
+    selected =
+      new Set(
+        Array.isArray(a)
+          ? a.filter(
+              x =>
+                VALID.includes(x)
+            )
+          : []
+      );
+
+    hpAnswer =
+      localStorage.getItem(
+        HP_KEY
+      ) || '';
+
+  }catch(e){
+
+    multiple = false;
+
+    selected =
+      new Set();
+
+    hpAnswer = '';
+  }
+
+  if(
+    !multiple &&
+    selected.size > 1
+  ){
+
+    selected =
+      new Set([
+        Array.from(
+          selected
+        )[0]
+      ]);
+  }
+}
+
+function save(){
+
+  try{
+
+    localStorage.setItem(
+      MULTI_KEY,
+      multiple
+        ? '1'
+        : '0'
+    );
+
+    localStorage.setItem(
+      METHODS_KEY,
+      JSON.stringify(
+        Array.from(
+          selected
+        )
+      )
+    );
+
+    if(hpAnswer){
+
+      localStorage.setItem(
+        HP_KEY,
+        hpAnswer
+      );
+
+    }else{
+
+      localStorage.removeItem(
+        HP_KEY
+      );
+    }
+
+  }catch(e){}
+}
+
+function cloneWithoutListeners(
+  el
+){
+
+  if(!el){
+    return null;
+  }
+
+  const c =
+    el.cloneNode(true);
+
+  el.replaceWith(c);
+
+  return c;
+}
+
+function ensureUI(){
+
+  const panel =
+    document.getElementById(
+      'heatingMethodPanel'
+    );
+
+  if(!panel){
+    return false;
+  }
+
+  panel
+    .querySelectorAll(
+      '.heating-method-choice'
+    )
+    .forEach(btn=>{
+
+      const fresh =
+        cloneWithoutListeners(
+          btn
+        );
+
+      fresh.addEventListener(
+        'click',
+        () =>
+          toggleMethod(
+            fresh.dataset.method
+          )
+      );
+    });
+
+  let multi =
+    document.getElementById(
+      'multipleHvacSystemsChoice'
+    );
+
+  if(!multi){
+
+    multi =
+      document.createElement(
+        'button'
+      );
+
+    multi.id =
+      'multipleHvacSystemsChoice';
+
+    multi.type =
+      'button';
+
+    multi.innerHTML =
+      '<span class="multiple-hvac-check"></span>' +
+      '<span class="multiple-hvac-text">Multiple Systems</span>';
+
+    panel.appendChild(
+      multi
+    );
+
+  }else{
+
+    multi =
+      cloneWithoutListeners(
+        multi
+      );
+
+    multi
+      .querySelector(
+        '.multiple-hvac-text'
+      )
+      .textContent =
+        'Multiple Systems';
+  }
+
+  multi.removeAttribute(
+    'aria-controls'
+  );
+
+  multi.addEventListener(
+    'click',
+    toggleMultiple
+  );
+
+  const hp =
+    document.getElementById(
+      'heatPumpQuestions'
+    );
+
+  if(hp){
+
+    hp
+      .querySelectorAll(
+        '.heatpump-answer'
+      )
+      .forEach(btn=>{
+
+        const fresh =
+          cloneWithoutListeners(
+            btn
+          );
+
+        fresh.addEventListener(
+          'click',
+          ()=>{
+
+            const v =
+              fresh.dataset.hpValue;
+
+            hpAnswer =
+              hpAnswer === v
+                ? ''
+                : v;
+
+            save();
+
+            syncUI();
+
+            calculate();
+          }
+        );
+      });
+  }
+
+  return true;
+}
+
+function toggleMultiple(){
+
+  multiple =
+    !multiple;
+
+  if(
+    !multiple &&
+    selected.size > 1
+  ){
+
+    selected =
+      new Set([
+        Array.from(
+          selected
+        )[0]
+      ]);
+  }
+
+  save();
+
+  syncUI();
+
+  calculate();
+}
+
+function toggleMethod(method){
+
+  if(
+    !VALID.includes(method)
+  ){
+    return;
+  }
+
+  if(
+    selected.has(method)
+  ){
+
+    selected.delete(
+      method
+    );
+
+  }else{
+
+    if(!multiple){
+      selected.clear();
+    }
+
+    selected.add(
+      method
+    );
+  }
+
+  if(
+    !selected.has(
+      'heatpump'
+    )
+  ){
+    hpAnswer = '';
+  }
+
+  save();
+
+  syncUI();
+
+  calculate();
+}
+
+function syncUI(){
+
+  const panel =
+    document.getElementById(
+      'heatingMethodPanel'
+    );
+
+  if(!panel){
+    return;
+  }
+
+  panel
+    .querySelectorAll(
+      '.heating-method-choice'
+    )
+    .forEach(btn=>{
+
+      const on =
+        selected.has(
+          btn.dataset.method
+        );
+
+      btn.classList.toggle(
+        'selected',
+        on
+      );
+
+      btn.setAttribute(
+        'aria-pressed',
+        on
+          ? 'true'
+          : 'false'
+      );
+
+      const c =
+        btn.querySelector(
+          '.heating-method-check'
+        );
+
+      if(c){
+        c.textContent =
+          on
+            ? '✓'
+            : '';
+      }
+    });
+
+  const multi =
+    document.getElementById(
+      'multipleHvacSystemsChoice'
+    );
+
+  if(multi){
+
+    multi.classList.toggle(
+      'selected',
+      multiple
+    );
+
+    multi.setAttribute(
+      'aria-pressed',
+      multiple
+        ? 'true'
+        : 'false'
+    );
+
+    const c =
+      multi.querySelector(
+        '.multiple-hvac-check'
+      );
+
+    if(c){
+      c.textContent =
+        multiple
+          ? '✓'
+          : '';
+    }
+  }
+
+  const hp =
+    document.getElementById(
+      'heatPumpQuestions'
+    );
+
+  if(hp){
+
+    const show =
+      selected.has(
+        'heatpump'
+      );
+
+    hp.classList.toggle(
+      'show',
+      show
+    );
+
+    hp
+      .querySelectorAll(
+        '.heatpump-answer'
+      )
+      .forEach(btn=>{
+
+        const on =
+          btn.dataset.hpValue ===
+          hpAnswer;
+
+        btn.classList.toggle(
+          'selected',
+          on
+        );
+
+        btn.setAttribute(
+          'aria-pressed',
+          on
+            ? 'true'
+            : 'false'
+        );
+
+        const c =
+          btn.querySelector(
+            '.heatpump-answer-check'
+          );
+
+        if(c){
+          c.textContent =
+            on
+              ? '✓'
+              : '';
+        }
+      });
+
+    const note =
+      document.getElementById(
+        'heatPumpRequiredNote'
+      );
+
+    if(note){
+
+      note.style.display =
+        show &&
+        !hpAnswer
+          ? 'block'
+          : 'none';
+    }
+  }
+
+  const hasAny =
+    selected.size > 0;
+
+  [38].forEach(r=>{
+
+    const row =
+      document
+        .getElementById(
+          'q' + r
+        )
+        ?.closest(
+          '.load-row'
+        );
+
+    if(row){
+
+      row.classList.toggle(
+        'heating-row-disabled',
+        !hasAny
+      );
+    }
+
+    [
+      'q',
+      'v',
+      'm',
+      'mq'
+    ].forEach(p=>{
+
+      const e =
+        document.getElementById(
+          p + r
+        );
+
+      if(e){
+        e.disabled =
+          !hasAny;
+      }
+    });
+  });
+
+  [
+    'q39',
+    'v39',
+    'q40',
+    'v40'
+  ].forEach(id=>{
+
+    const e =
+      document.getElementById(id);
+
+    if(e){
+      e.value = '';
+    }
+  });
+
+  const r39 =
+    document
+      .getElementById(
+        'q39'
+      )
+      ?.closest(
+        '.load-row'
+      );
+
+  const r40 =
+    document
+      .getElementById(
+        'q40'
+      )
+      ?.closest(
+        '.load-row'
+      );
+
+  if(r39){
+    r39.style.display =
+      'none';
+  }
+
+  if(r40){
+    r40.style.display =
+      'none';
+  }
+
+  const label37 =
+    document
+      .getElementById(
+        'q37'
+      )
+      ?.closest(
+        '.load-row'
+      )
+      ?.querySelector(
+        '.load-name'
+      );
+
+  const label38 =
+    document
+      .getElementById(
+        'q38'
+      )
+      ?.closest(
+        '.load-row'
+      )
+      ?.querySelector(
+        '.load-name'
+      );
+
+  if(label37){
+
+    label37.textContent =
+      selected.size === 1 &&
+      selected.has(
+        'heatpump'
+      )
+        ? 'Heat Pump Compressor'
+        : 'Air Conditioning';
+  }
+
+  if(label38){
+
+    label38.textContent =
+      selected.size === 1 &&
+      selected.has(
+        'heatpump'
+      )
+        ? 'Supplemental Electric Heat'
+        : 'Heating';
+  }
+}
+
+function setActive(rows){
+
+  activeRows =
+    new Set(rows);
+
+  [37,38,39,40]
+    .forEach(r=>{
+
+      const active =
+        activeRows.has(r) &&
+        rowVA(r) > 0;
+
+      const c =
+        document.getElementById(
+          'm' + r
+        );
+
+      const q =
+        document.getElementById(
+          'mq' + r
+        );
+
+      if(c){
+
+        c.disabled =
+          !active;
+
+        c.classList.toggle(
+          'managed-control-inactive',
+          !active
+        );
+      }
+
+      if(q){
+
+        q.disabled =
+          !active;
+
+        q.classList.toggle(
+          'managed-control-inactive',
+          !active
+        );
+      }
+    });
+}
+
+function heatContribution(
+  method,
+  ac,
+  heat
+){
+
+  if(
+    method ===
+    'central65'
+  ){
+    return heat * .65;
+  }
+
+  if(
+    method ===
+    'separate40'
+  ){
+    return heat * .40;
+  }
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    if(
+      hpAnswer ===
+      'yes'
+    ){
+      return (
+        ac +
+        heat * .65
+      );
+    }
+
+    if(
+      hpAnswer ===
+      'no'
+    ){
+      return heat * .65;
+    }
+  }
+
+  return 0;
+}
+
+function generatorHeatContribution(
+  method
+){
+
+  if(
+    method ===
+    'central65'
+  ){
+    return (
+      remain(38) *
+      .65
+    );
+  }
+
+  if(
+    method ===
+    'separate40'
+  ){
+    return (
+      remain(38) *
+      .40
+    );
+  }
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    if(
+      hpAnswer ===
+      'yes'
+    ){
+      return (
+        remain(37) +
+        remain(38) *
+        .65
+      );
+    }
+
+    if(
+      hpAnswer ===
+      'no'
+    ){
+      return (
+        remain(38) *
+        .65
+      );
+    }
+  }
+
+  return 0;
+}
+
+window.isHVACManagedRowApplicable =
+  function(row){
+
+    return (
+      activeRows.has(
+        Number(row)
+      ) &&
+      rowVA(
+        Number(row)
+      ) > 0
+    );
+  };
+
+window.validateHVACMethodSelection =
+  function(){
+
+    const methodSelected =
+      selected.size > 0;
+
+    const heatPumpReady =
+      !selected.has(
+        'heatpump'
+      ) ||
+      !!hpAnswer;
+
+    const fortyPercentReady =
+      !selected.has(
+        'separate40'
+      ) ||
+      Math.floor(
+        num('q38')
+      ) >= 4;
+
+    return {
+      valid:
+        methodSelected &&
+        heatPumpReady &&
+        fortyPercentReady,
+
+      method:
+        Array.from(
+          selected
+        ).join(','),
+
+      methodSelected:
+        methodSelected,
+
+      heatPumpReady:
+        heatPumpReady,
+
+      fortyPercentReady:
+        fortyPercentReady,
+
+      heatingUnitCount:
+        Math.floor(
+          num('q38')
+        )
+    };
+  };
+
+window.getHVACMethodSummary =
+  function(){
+
+    if(!selected.size){
+      return 'Not selected';
+    }
+
+    const names = {
+      central65:
+        'Central electric heat at 65%',
+
+      separate40:
+        'Separately controlled electric heat at 40%',
+
+      heatpump:
+        'Heat pump with supplemental electric heat'
+    };
+
+    return (
+      multiple
+        ? 'Multiple systems: '
+        : 'Heating method: '
+    ) +
+    Array.from(
+      selected
+    )
+    .map(
+      m => names[m]
+    )
+    .join(' + ');
+  };
+
+window.getHVACRowLabel =
+  function(row){
+
+    if(row === 37){
+
+      return (
+        selected.size === 1 &&
+        selected.has(
+          'heatpump'
+        )
+      )
+        ? 'Heat Pump Compressor'
+        : 'Air Conditioning';
+    }
+
+    if(row === 38){
+
+      return (
+        selected.size === 1 &&
+        selected.has(
+          'heatpump'
+        )
+      )
+        ? 'Supplemental Electric Heat'
+        : 'Heating';
+    }
+
+    return row === 39
+      ? 'Air Conditioning'
+      : 'Heating';
+  };
+
+window.hvacLoadCalculation =
+  function(){
+
+    const ac =
+      rowVA(37);
+
+    const heat =
+      rowVA(38);
+
+    let serviceHeat = 0;
+
+    let controlling = '';
+
+    selected.forEach(m=>{
+
+      const v =
+        heatContribution(
+          m,
+          ac,
+          heat
+        );
+
+      if(
+        v > serviceHeat
+      ){
+
+        serviceHeat = v;
+
+        controlling = m;
+      }
+    });
+
+    const coolingControls =
+      ac >= serviceHeat;
+
+    const service =
+      Math.max(
+        ac,
+        serviceHeat
+      );
+
+    let generator = 0;
+
+    let gAC = 0;
+
+    let gHeat = 0;
+
+    if(!selected.size){
+
+      setActive([]);
+
+      generator = 0;
+
+    }else if(
+      coolingControls
+    ){
+
+      setActive(
+        [37]
+      );
+
+      gAC =
+        remain(37);
+
+      generator =
+        gAC;
+
+    }else{
+
+      const rows =
+        [38];
+
+      if(
+        controlling ===
+          'heatpump' &&
+        hpAnswer ===
+          'yes'
+      ){
+        rows.push(37);
+      }
+
+      setActive(rows);
+
+      gHeat =
+        generatorHeatContribution(
+          controlling
+        );
+
+      generator =
+        gHeat;
+    }
+
+    setOutput(
+      'e37',
+      coolingControls
+        ? ac
+        : (
+            controlling ===
+              'heatpump' &&
+            hpAnswer ===
+              'yes'
+              ? ac
+              : 0
+          )
+    );
+
+    setOutput(
+      'e38',
+      coolingControls
+        ? 0
+        : serviceHeat
+    );
+
+    setOutput('e39',0);
+    setOutput('e40',0);
+    setOutput('e41',0);
+
+    setOutput(
+      'f37',
+      coolingControls
+        ? remain(37)
+        : (
+            controlling ===
+              'heatpump' &&
+            hpAnswer ===
+              'yes'
+              ? remain(37)
+              : 0
+          )
+    );
+
+    setOutput(
+      'f38',
+      coolingControls
+        ? 0
+        : (
+            controlling ===
+              'separate40'
+              ? remain(38) *
+                .40
+              : (
+                  controlling
+                    ? remain(38) *
+                      .65
+                    : 0
+                )
+          )
+    );
+
+    setOutput('f39',0);
+    setOutput('f40',0);
+    setOutput('f41',0);
+
+    return {
+      service,
+      generator,
+      serviceAC:ac,
+      generatorAC:gAC,
+      serviceHeating:
+        serviceHeat,
+      generatorHeating:
+        gHeat,
+      method:
+        Array.from(
+          selected
+        ).join(','),
+      multipleHeatTypes:
+        multiple
+    };
+  };
+
+const priorReset =
+  window.resetHeatingMethodSelection;
+
+window.resetHeatingMethodSelection =
+  function(){
+
+    try{
+
+      if(
+        typeof priorReset ===
+        'function'
+      ){
+        priorReset();
+      }
+
+    }catch(e){}
+
+    multiple = false;
+
+    selected.clear();
+
+    hpAnswer = '';
+
+    save();
+
+    syncUI();
+  };
+
+function init(){
+
+  load();
+
+  if(!ensureUI()){
+    return;
+  }
+
+  syncUI();
+
+  calculate();
+}
+
+if(
+  document.readyState ===
+  'loading'
+){
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    init
+  );
+
+}else{
+
+  setTimeout(
+    init,
+    0
+  );
+}
+
+})();
+(function(){
+
+'use strict';
+
+const METHODS_KEY =
+  'loadcalcpro_hvac_selected_methods_v1';
+
+const HP_KEY =
+  'loadcalcpro_hvac_multi_hp_answer_v1';
+
+const DATA_KEY =
+  'loadcalcpro_hvac_method_sections_v57';
+
+/*
+  V5.30:
+  HVAC managed-load controls now follow
+  the same all/none and quantity-cycle
+  behavior as appliance and continuous-load
+  controls.
+*/
+
+const MANAGED_KEY =
+  'loadcalcpro_hvac_method_managed_v57';
+
+const METHODS = {
+
+  central65:{
+    title:
+      'Cooling at 100% / Central Electric Heat at 65%',
+
+    rows:[
+      [
+        'ac',
+        'Air Conditioning Unit 1'
+      ],
+      [
+        'ac2',
+        'Air Conditioning Unit 2'
+      ],
+      [
+        'ac3',
+        'Air Conditioning Unit 3'
+      ],
+      [
+        'heat',
+        'Central Electric Heat Unit 1'
+      ],
+      [
+        'heat2',
+        'Central Electric Heat Unit 2'
+      ],
+      [
+        'heat3',
+        'Central Electric Heat Unit 3'
+      ]
+    ]
+  },
+
+  separate40:{
+    title:
+      'Separately Controlled Electric Heating Systems at 40%',
+
+    rows:[
+      [
+        'ac',
+        'Air Conditioning Unit 1'
+      ],
+      [
+        'ac2',
+        'Air Conditioning Unit 2'
+      ],
+      [
+        'ac3',
+        'Air Conditioning Unit 3'
+      ],
+      [
+        'heat',
+        'Electric Heating Unit 1'
+      ],
+      [
+        'heat2',
+        'Electric Heating Unit 2'
+      ],
+      [
+        'heat3',
+        'Electric Heating Unit 3'
+      ],
+      [
+        'heat4',
+        'Electric Heating Unit 4'
+      ]
+    ]
+  },
+
+  heatpump:{
+    title:
+      'Heat Pump with Supplemental Electric Heat',
+
+    rows:[
+      [
+        'ac',
+        'Heat Pump Compressor 1'
+      ],
+      [
+        'ac2',
+        'Heat Pump Compressor 2'
+      ],
+      [
+        'ac3',
+        'Heat Pump Compressor 3'
+      ],
+      [
+        'heat',
+        'Supplemental Electric Heat Unit 1'
+      ],
+      [
+        'heat2',
+        'Supplemental Electric Heat Unit 2'
+      ],
+      [
+        'heat3',
+        'Supplemental Electric Heat Unit 3'
+      ]
+    ]
+  }
+};
+
+let data = {};
+
+let managed = {};
+
+function readJSON(
+  key,
+  fallback
+){
+
+  try{
+
+    const v =
+      JSON.parse(
+        localStorage.getItem(
+          key
+        ) || ''
+      );
+
+    return (
+      v &&
+      typeof v === 'object'
+    )
+      ? v
+      : fallback;
+
+  }catch(e){
+
+    return fallback;
+  }
+}
+
+function save(){
+
+  try{
+
+    localStorage.setItem(
+      DATA_KEY,
+      JSON.stringify(data)
+    );
+
+    localStorage.setItem(
+      MANAGED_KEY,
+      JSON.stringify(managed)
+    );
+
+  }catch(e){}
+}
+
+function selections(){
+
+  const a =
+    readJSON(
+      METHODS_KEY,
+      []
+    );
+
+  return Array.isArray(a)
+    ? a.filter(
+        x => METHODS[x]
+      )
+    : [];
+}
+
+function hpAnswer(){
+
+  return (
+    localStorage.getItem(
+      HP_KEY
+    ) || ''
+  );
+}
+
+function number(id){
+
+  const e =
+    document.getElementById(
+      id
+    );
+
+  const n =
+    Number(
+      e ? e.value : 0
+    );
+
+  return (
+    Number.isFinite(n) &&
+    n > 0
+  )
+    ? n
+    : 0;
+}
+
+function fmt(n){
+
+  return n
+    ? Math.round(n)
+        .toLocaleString(
+          'en-US'
+        )
+    : '';
+}
+
+function key(
+  method,
+  type
+){
+
+  return (
+    method +
+    '_' +
+    type
+  );
+}
+
+function total(
+  method,
+  type
+){
+
+  const k =
+    key(
+      method,
+      type
+    );
+
+  const d =
+    data[k] || {};
+
+  return (
+    (
+      Number(d.qty) ||
+      0
+    ) *
+    (
+      Number(d.va) ||
+      0
+    )
+  );
+}
+
+function remaining(
+  method,
+  type
+){
+
+  const k =
+    key(
+      method,
+      type
+    );
+
+  const d =
+    data[k] || {};
+
+  const q =
+    Math.max(
+      0,
+      Math.floor(
+        Number(d.qty) ||
+        0
+      )
+    );
+
+  const m =
+    managed[k]
+      ? q
+      : 0;
+
+  return (
+    Math.max(
+      q - m,
+      0
+    ) *
+    (
+      Number(d.va) ||
+      0
+    )
+  );
+}
+
+const AC_TYPES = [
+  'ac',
+  'ac2',
+  'ac3'
+];
+
+const HEAT_TYPES = [
+  'heat',
+  'heat2',
+  'heat3',
+  'heat4'
+];
+
+const FORTY_HEAT_TYPES = [
+  'heat',
+  'heat2',
+  'heat3',
+  'heat4'
+];
+
+function categoryTotal(
+  method,
+  types,
+  generator
+){
+
+  return types.reduce(
+    (
+      sum,
+      t
+    ) =>
+      sum +
+      (
+        generator
+          ? remaining(
+              method,
+              t
+            )
+          : total(
+              method,
+              t
+            )
+      ),
+    0
+  );
+}
+
+function acTotal(
+  method,
+  generator
+){
+
+  return categoryTotal(
+    method,
+    AC_TYPES,
+    generator
+  );
+}
+
+function heatTotal(
+  method,
+  generator
+){
+
+  return categoryTotal(
+    method,
+    HEAT_TYPES,
+    generator
+  );
+}
+
+function fortyHeatTotal(
+  generator
+){
+
+  return categoryTotal(
+    'separate40',
+    FORTY_HEAT_TYPES,
+    generator
+  );
+}
+
+function fortyUnitCount(){
+
+  return FORTY_HEAT_TYPES
+    .reduce(
+      (
+        sum,
+        t
+      ) =>
+        sum +
+        Math.max(
+          0,
+          Math.floor(
+            Number(
+              (
+                data[
+                  key(
+                    'separate40',
+                    t
+                  )
+                ] || {}
+              ).qty
+            ) || 0
+          )
+        ),
+      0
+    );
+}
+
+function methodService(
+  method
+){
+
+  const ac =
+    acTotal(
+      method,
+      false
+    );
+
+  const heat =
+    method ===
+      'separate40'
+      ? fortyHeatTotal(
+          false
+        )
+      : heatTotal(
+          method,
+          false
+        );
+
+  if(
+    method ===
+    'central65'
+  ){
+    return Math.max(
+      ac,
+      heat * .65
+    );
+  }
+
+  if(
+    method ===
+    'separate40'
+  ){
+    return Math.max(
+      ac,
+      heat * .40
+    );
+  }
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    const hp =
+      hpAnswer();
+
+    return hp === 'yes'
+      ? (
+          ac +
+          heat * .65
+        )
+      : (
+          hp === 'no'
+            ? heat * .65
+            : 0
+        );
+  }
+
+  return 0;
+}
+
+function methodGenerator(
+  method
+){
+
+  const ac =
+    acTotal(
+      method,
+      true
+    );
+
+  const heat =
+    method ===
+      'separate40'
+      ? fortyHeatTotal(
+          true
+        )
+      : heatTotal(
+          method,
+          true
+        );
+
+  if(
+    method ===
+    'central65'
+  ){
+    return Math.max(
+      ac,
+      heat * .65
+    );
+  }
+
+  if(
+    method ===
+    'separate40'
+  ){
+    return Math.max(
+      ac,
+      heat * .40
+    );
+  }
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    const hp =
+      hpAnswer();
+
+    return hp === 'yes'
+      ? (
+          ac +
+          heat * .65
+        )
+      : (
+          hp === 'no'
+            ? heat * .65
+            : 0
+        );
+  }
+
+  return 0;
+}
+
+function rowContribution(
+  method,
+  type,
+  generator
+){
+
+  const ac =
+    acTotal(
+      method,
+      generator
+    );
+
+  const heat =
+    method ===
+      'separate40'
+      ? fortyHeatTotal(
+          generator
+        )
+      : heatTotal(
+          method,
+          generator
+        );
+
+  const isAC =
+    AC_TYPES.includes(
+      type
+    );
+
+  const isHeat =
+    HEAT_TYPES.includes(
+      type
+    );
+
+  const individual =
+    generator
+      ? remaining(
+          method,
+          type
+        )
+      : total(
+          method,
+          type
+        );
+
+  if(
+    method ===
+    'central65'
+  ){
+
+    const heatLoad =
+      heat * .65;
+
+    if(isAC){
+
+      return ac >=
+        heatLoad
+          ? individual
+          : 0;
+    }
+
+    if(isHeat){
+
+      return heatLoad >
+        ac
+          ? individual *
+            .65
+          : 0;
+    }
+
+    return 0;
+  }
+
+  if(
+    method ===
+    'separate40'
+  ){
+
+    const heatLoad =
+      heat * .40;
+
+    if(isAC){
+
+      return ac >=
+        heatLoad
+          ? individual
+          : 0;
+    }
+
+    if(
+      FORTY_HEAT_TYPES
+        .includes(type)
+    ){
+
+      return heatLoad >
+        ac
+          ? individual *
+            .40
+          : 0;
+    }
+
+    return 0;
+  }
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    const hp =
+      hpAnswer();
+
+    if(
+      hp === 'yes'
+    ){
+
+      if(isAC){
+        return individual;
+      }
+
+      if(isHeat){
+        return (
+          individual *
+          .65
+        );
+      }
+    }
+
+    if(
+      hp === 'no' &&
+      isHeat
+    ){
+
+      return (
+        individual *
+        .65
+      );
+    }
+
+    return 0;
+  }
+
+  return 0;
+}
+
+function input(
+  method,
+  type,
+  field,
+  placeholder
+){
+
+  const k =
+    key(
+      method,
+      type
+    );
+
+  const v =
+    (
+      data[k] &&
+      data[k][field]
+    ) || '';
+
+  return (
+    '<input ' +
+    'data-v57-method="' +
+    method +
+    '" ' +
+    'data-v57-type="' +
+    type +
+    '" ' +
+    'data-v57-field="' +
+    field +
+    '" ' +
+    'type="number" ' +
+    'min="0" ' +
+    'step="' +
+    (
+      field === 'qty'
+        ? '1'
+        : 'any'
+    ) +
+    '" ' +
+    'inputmode="' +
+    (
+      field === 'qty'
+        ? 'numeric'
+        : 'decimal'
+    ) +
+    '" ' +
+    'placeholder="' +
+    placeholder +
+    '" ' +
+    'value="' +
+    v +
+    '">'
+  );
+}
+
+function rowHTML(
+  method,
+  type,
+  label
+){
+
+  const k =
+    key(
+      method,
+      type
+    );
+
+  const on =
+    !!managed[k];
+
+  return (
+    '<div class="v57-method-row">' +
+
+    '<div class="v57-method-name">' +
+    label +
+    '</div>' +
+
+    '<div class="v57-method-inputs">' +
+    input(
+      method,
+      type,
+      'qty',
+      'Qty'
+    ) +
+    input(
+      method,
+      type,
+      'va',
+      'VA'
+    ) +
+    '</div>' +
+
+    '<div class="v57-method-managed">' +
+
+    '<button ' +
+    'type="button" ' +
+    'class="v57-managed-button ' +
+    (
+      on
+        ? 'checked'
+        : ''
+    ) +
+    '" ' +
+    'data-v57-managed="' +
+    k +
+    '" ' +
+    'aria-label="Toggle managed load">' +
+    (
+      on
+        ? '✓'
+        : ''
+    ) +
+    '</button>' +
+
+    '</div>' +
+
+    '<div class="v57-method-output">' +
+
+    '<div class="v57-output-box">' +
+    '<div class="v57-output-label">' +
+    'Service Load VA' +
+    '</div>' +
+    '<div class="v57-output-value" ' +
+    'data-v57-output="' +
+    method +
+    '_' +
+    type +
+    '_service">' +
+    '</div>' +
+    '</div>' +
+
+    '<div class="v57-output-box">' +
+    '<div class="v57-output-label">' +
+    'Generator Load VA' +
+    '</div>' +
+    '<div class="v57-output-value" ' +
+    'data-v57-output="' +
+    method +
+    '_' +
+    type +
+    '_generator">' +
+    '</div>' +
+    '</div>' +
+
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+function fortyComparisonHTML(){
+
+  return (
+    '<div class="v57-forty-comparison">' +
+
+    '<div>' +
+    '<span>Cooling at 100%</span>' +
+    '<strong data-v57-compare="cooling"></strong>' +
+    '</div>' +
+
+    '<div>' +
+    '<span>Heating total</span>' +
+    '<strong data-v57-compare="heating-total"></strong>' +
+    '</div>' +
+
+    '<div>' +
+    '<span>Heating at 40%</span>' +
+    '<strong data-v57-compare="heating-40"></strong>' +
+    '</div>' +
+
+    '<div class="v57-forty-used">' +
+    '<span>HVAC load used</span>' +
+    '<strong data-v57-compare="used"></strong>' +
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+function cardHTML(method){
+
+  const m =
+    METHODS[method];
+
+  let rows =
+    m.rows
+      .map(
+        r =>
+          rowHTML(
+            method,
+            r[0],
+            r[1]
+          )
+      )
+      .join('');
+
+  let hp = '';
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    const a =
+      hpAnswer();
+
+    hp =
+      '<div class="v57-hp-question">' +
+
+      '<div class="v57-hp-question-title">' +
+      'Can the heat-pump compressor and supplemental electric heat operate simultaneously?' +
+      '</div>' +
+
+      '<div class="v57-hp-options">' +
+
+      '<button type="button" ' +
+      'class="v57-hp-option ' +
+      (
+        a === 'yes'
+          ? 'selected'
+          : ''
+      ) +
+      '" ' +
+      'data-v57-hp="yes">' +
+
+      '<span class="v57-hp-check">' +
+      (
+        a === 'yes'
+          ? '✓'
+          : ''
+      ) +
+      '</span>' +
+
+      '<span>' +
+      'Yes — compressor at 100% plus supplemental heat at 65%' +
+      '</span>' +
+
+      '</button>' +
+
+      '<button type="button" ' +
+      'class="v57-hp-option ' +
+      (
+        a === 'no'
+          ? 'selected'
+          : ''
+      ) +
+      '" ' +
+      'data-v57-hp="no">' +
+
+      '<span class="v57-hp-check">' +
+      (
+        a === 'no'
+          ? '✓'
+          : ''
+      ) +
+      '</span>' +
+
+      '<span>' +
+      'No — controls lock out the compressor during supplemental heat' +
+      '</span>' +
+
+      '</button>' +
+
+      '</div>' +
+
+      '</div>';
+  }
+
+  const comparison =
+    method ===
+      'separate40'
+      ? fortyComparisonHTML()
+      : '';
+
+  return (
+    '<section class="v57-method-card" ' +
+    'data-v57-card="' +
+    method +
+    '">' +
+
+    '<div class="v57-method-heading">' +
+    m.title +
+    '</div>' +
+
+    rows +
+    comparison +
+    hp +
+
+    '</section>'
+  );
+}
+
+function ensureContainer(){
+
+  let c =
+    document.getElementById(
+      'v57HvacMethodSections'
+    );
+
+  if(c){
+    return c;
+  }
+
+  const card =
+    document.querySelector(
+      'section.card h2.card-heading'
+    );
+
+  const hvacHeading =
+    [
+      ...document.querySelectorAll(
+        'section.card h2.card-heading'
+      )
+    ].find(
+      h =>
+        h.textContent.trim() ===
+        'HVAC Loads'
+    );
+
+  if(!hvacHeading){
+    return null;
+  }
+
+  const body =
+    hvacHeading
+      .parentElement
+      .querySelector(
+        '.card-body'
+      );
+
+  if(!body){
+    return null;
+  }
+
+  c =
+    document.createElement(
+      'div'
+    );
+
+  c.id =
+    'v57HvacMethodSections';
+
+  const summary =
+    body.querySelector(
+      '.summary-strip'
+    );
+
+  body.insertBefore(
+    c,
+    summary || null
+  );
+
+  [
+    'q37',
+    'q38',
+    'q39',
+    'q40'
+  ].forEach(id=>{
+
+    const r =
+      document
+        .getElementById(id)
+        ?.closest(
+          '.load-row'
+        );
+
+    if(r){
+      r.classList.add(
+        'v57-hide-legacy-hvac'
+      );
+    }
+  });
+
+  const old =
+    document.getElementById(
+      'heatPumpQuestions'
+    );
+
+  if(old){
+
+    old.classList.add(
+      'v57-hide-legacy-hvac'
+    );
+  }
+
+  return c;
+}
+
+function render(){
+
+  const c =
+    ensureContainer();
+
+  if(!c){
+    return;
+  }
+
+  const sel =
+    selections();
+
+  c.innerHTML =
+    sel.length
+      ? sel
+          .map(
+            cardHTML
+          )
+          .join('')
+      : '<div id="v57NoMethodMessage">' +
+        'Select a heating method above to open its HVAC load section.' +
+        '</div>';
+
+  c
+    .querySelectorAll(
+      '[data-v57-method]'
+    )
+    .forEach(el=>{
+
+      el.addEventListener(
+        'input',
+        ()=>{
+
+          const m =
+            el.dataset.v57Method;
+
+          const t =
+            el.dataset.v57Type;
+
+          const f =
+            el.dataset.v57Field;
+
+          const k =
+            key(
+              m,
+              t
+            );
+
+          data[k] =
+            data[k] || {};
+
+          data[k][f] =
+            el.value;
+
+          save();
+
+          calculate();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v57-managed]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        ()=>{
+
+          const k =
+            b.dataset.v57Managed;
+
+          managed[k] =
+            !managed[k];
+
+          save();
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v57-hp]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        ()=>{
+
+          const v =
+            b.dataset.v57Hp;
+
+          const current =
+            hpAnswer();
+
+          if(
+            current === v
+          ){
+
+            localStorage.removeItem(
+              HP_KEY
+            );
+
+          }else{
+
+            localStorage.setItem(
+              HP_KEY,
+              v
+            );
+          }
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+
+  updateOutputs();
+}
+
+function updateOutputs(){
+
+  selections()
+    .forEach(
+      m =>
+        METHODS[m].rows
+          .forEach(r=>{
+
+            const t =
+              r[0];
+
+            const s =
+              document.querySelector(
+                '[data-v57-output="' +
+                m +
+                '_' +
+                t +
+                '_service"]'
+              );
+
+            const g =
+              document.querySelector(
+                '[data-v57-output="' +
+                m +
+                '_' +
+                t +
+                '_generator"]'
+              );
+
+            if(s){
+
+              s.textContent =
+                fmt(
+                  rowContribution(
+                    m,
+                    t,
+                    false
+                  )
+                );
+            }
+
+            if(g){
+
+              g.textContent =
+                fmt(
+                  rowContribution(
+                    m,
+                    t,
+                    true
+                  )
+                );
+            }
+          })
+    );
+
+  if(
+    selections()
+      .includes(
+        'separate40'
+      )
+  ){
+
+    const ac =
+      acTotal(
+        'separate40',
+        false
+      );
+
+    const heat =
+      fortyHeatTotal(
+        false
+      );
+
+    const heat40 =
+      heat * .40;
+
+    const used =
+      Math.max(
+        ac,
+        heat40
+      );
+
+    const values = {
+      cooling:ac,
+      'heating-total':heat,
+      'heating-40':heat40,
+      used:used
+    };
+
+    Object
+      .keys(values)
+      .forEach(k=>{
+
+        const e =
+          document.querySelector(
+            '[data-v57-compare="' +
+            k +
+            '"]'
+          );
+
+        if(e){
+
+          e.textContent =
+            fmt(
+              values[k]
+            ) +
+            (
+              k === 'used'
+                ? (
+                    heat40 > ac
+                      ? ' — Heating'
+                      : ' — Cooling'
+                  )
+                : ''
+            );
+        }
+      });
+  }
+}
+
+const priorCalc =
+  window.hvacLoadCalculation;
+
+window.hvacLoadCalculation =
+  function(){
+
+    const sel =
+      selections();
+
+    let service = 0;
+
+    let generator = 0;
+
+    let serviceAC = 0;
+
+    let generatorAC = 0;
+
+    let serviceHeating = 0;
+
+    let generatorHeating = 0;
+
+    sel.forEach(m=>{
+
+      service +=
+        methodService(m);
+
+      generator +=
+        methodGenerator(m);
+
+      METHODS[m].rows
+        .forEach(r=>{
+
+          const t =
+            r[0];
+
+          const sv =
+            rowContribution(
+              m,
+              t,
+              false
+            );
+
+          const gv =
+            rowContribution(
+              m,
+              t,
+              true
+            );
+
+          if(
+            AC_TYPES.includes(t)
+          ){
+
+            serviceAC += sv;
+
+            generatorAC += gv;
+
+          }else if(
+            HEAT_TYPES.includes(t)
+          ){
+
+            serviceHeating +=
+              sv;
+
+            generatorHeating +=
+              gv;
+          }
+        });
+    });
+
+    setOutput(
+      'e37',
+      serviceAC
+    );
+
+    setOutput(
+      'e38',
+      serviceHeating
+    );
+
+    setOutput(
+      'e39',
+      0
+    );
+
+    setOutput(
+      'e40',
+      0
+    );
+
+    setOutput(
+      'e41',
+      0
+    );
+
+    setOutput(
+      'f37',
+      generatorAC
+    );
+
+    setOutput(
+      'f38',
+      generatorHeating
+    );
+
+    setOutput(
+      'f39',
+      0
+    );
+
+    setOutput(
+      'f40',
+      0
+    );
+
+    setOutput(
+      'f41',
+      0
+    );
+
+    updateOutputs();
+
+    return {
+      service,
+      generator,
+      serviceAC,
+      generatorAC,
+      serviceHeating,
+      generatorHeating,
+      method:
+        sel.join(','),
+      multipleHeatTypes:
+        sel.length > 1
+    };
+  };
+
+window.validateHVACMethodSelection =
+  function(){
+
+    const sel =
+      selections();
+
+    const hpReady =
+      !sel.includes(
+        'heatpump'
+      ) ||
+      !!hpAnswer();
+
+    const fortyQty =
+      fortyUnitCount();
+
+    const fortyReady =
+      !sel.includes(
+        'separate40'
+      ) ||
+      fortyQty >= 4;
+
+    return {
+      valid:
+        sel.length > 0 &&
+        hpReady &&
+        fortyReady,
+
+      method:
+        sel.join(','),
+
+      methodSelected:
+        sel.length > 0,
+
+      heatPumpReady:
+        hpReady,
+
+      fortyPercentReady:
+        fortyReady,
+
+      heatingUnitCount:
+        fortyQty
+    };
+  };
+
+window.getHVACMethodSummary =
+  function(){
+
+    const sel =
+      selections();
+
+    const names = {
+      central65:
+        'Central electric heat at 65%',
+
+      separate40:
+        'Separately controlled electric heat at 40%',
+
+      heatpump:
+        'Heat pump with supplemental electric heat'
+    };
+
+    return sel.length
+      ? (
+          sel.length > 1
+            ? 'Multiple systems: '
+            : 'Heating method: '
+        ) +
+        sel
+          .map(
+            m => names[m]
+          )
+          .join(' + ')
+      : 'Not selected';
+  };
+
+function watchSelectors(){
+
+  const panel =
+    document.getElementById(
+      'heatingMethodPanel'
+    );
+
+  if(!panel){
+    return;
+  }
+
+  panel.addEventListener(
+    'click',
+    () =>
+      setTimeout(
+        ()=>{
+
+          render();
+
+          calculate();
+        },
+        0
+      ),
+    true
+  );
+}
+
+const previousReset =
+  window.resetHeatingMethodSelection;
+
+window.resetHeatingMethodSelection =
+  function(){
+
+    if(
+      typeof previousReset ===
+      'function'
+    ){
+      previousReset();
+    }
+
+    data = {};
+
+    managed = {};
+
+    save();
+
+    render();
+
+    calculate();
+  };
+
+const previousManagedCount =
+  window.applicableManagedLoadCount;
+
+window.applicableManagedLoadCount =
+  function(){
+
+    let total =
+      typeof previousManagedCount ===
+      'function'
+        ? previousManagedCount()
+        : 0;
+
+    selections()
+      .forEach(
+        m =>
+          METHODS[m].rows
+            .forEach(r=>{
+
+              const k =
+                key(
+                  m,
+                  r[0]
+                );
+
+              const d =
+                data[k] || {};
+
+              if(
+                managed[k]
+              ){
+
+                total +=
+                  Math.max(
+                    0,
+                    Math.floor(
+                      Number(d.qty) ||
+                      0
+                    )
+                  );
+              }
+            })
+      );
+
+    return total;
+  };
+
+function init(){
+
+  data =
+    readJSON(
+      DATA_KEY,
+      {}
+    );
+
+  managed =
+    readJSON(
+      MANAGED_KEY,
+      {}
+    );
+
+  ensureContainer();
+
+  watchSelectors();
+
+  render();
+
+  calculate();
+}
+
+if(
+  document.readyState ===
+  'loading'
+){
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    () =>
+      setTimeout(
+        init,
+        20
+      )
+  );
+
+}else{
+
+  setTimeout(
+    init,
+    20
+  );
+}
+
+})();
+(function(){
+
+'use strict';
+
+const METHODS_KEY =
+  'loadcalcpro_hvac_selected_methods_v1';
+
+const MULTI_KEY =
+  'loadcalcpro_hvac_multiple_selector_v1';
+
+const HP_KEY =
+  'loadcalcpro_hvac_multi_hp_answer_v1';
+
+const DATA_KEY =
+  'loadcalcpro_hvac_method_sections_v57';
+
+const MANAGED_KEY =
+  'loadcalcpro_hvac_method_managed_v57';
+
+const COUNT_KEY =
+  'loadcalcpro_hvac_visible_system_counts_v522';
+
+const METHODS = {
+
+  central65:{
+    title:
+      'Cooling at 100% / Central Electric Heat at 65%',
+    cool:
+      'Air Conditioning Unit',
+    heat:
+      'Central Electric Heat Unit'
+  },
+
+  heatpump:{
+    title:
+      'Heat Pump with Supplemental Electric Heat',
+    cool:
+      'Heat Pump Unit',
+    heat:
+      'Supplemental Electric Heat Unit'
+  },
+
+  separate40:{
+    title:
+      'Separately Controlled Electric Heating Systems at 40%',
+    cool:
+      'Cooling Unit',
+    heat:
+      'Heating Unit'
+  }
+};
+
+let data =
+  readJSON(
+    DATA_KEY,
+    {}
+  );
+
+let managed =
+  readJSON(
+    MANAGED_KEY,
+    {}
+  );
+
+let counts =
+  readJSON(
+    COUNT_KEY,
+    {}
+  );
+
+function readJSON(
+  k,
+  f
+){
+
+  try{
+
+    const v =
+      JSON.parse(
+        localStorage.getItem(k) ||
+        ''
+      );
+
+    return (
+      v &&
+      typeof v === 'object'
+    )
+      ? v
+      : f;
+
+  }catch(e){
+
+    return f;
+  }
+}
+
+function save(){
+
+  try{
+
+    localStorage.setItem(
+      DATA_KEY,
+      JSON.stringify(data)
+    );
+
+    localStorage.setItem(
+      MANAGED_KEY,
+      JSON.stringify(managed)
+    );
+
+    localStorage.setItem(
+      COUNT_KEY,
+      JSON.stringify(counts)
+    );
+
+  }catch(e){}
+}
+
+function selected(){
+
+  const a =
+    readJSON(
+      METHODS_KEY,
+      []
+    );
+
+  return Array.isArray(a)
+    ? a.filter(
+        x => METHODS[x]
+      )
+    : [];
+}
+
+function hpAnswer(){
+
+  return (
+    localStorage.getItem(
+      HP_KEY
+    ) || ''
+  );
+}
+
+function typeFor(
+  kind,
+  index
+){
+
+  return (
+    kind +
+    (
+      index === 1
+        ? ''
+        : index
+    )
+  );
+}
+
+function key(
+  method,
+  type
+){
+
+  return (
+    method +
+    '_' +
+    type
+  );
+}
+
+function item(
+  method,
+  type
+){
+
+  return (
+    data[
+      key(
+        method,
+        type
+      )
+    ] || {}
+  );
+}
+
+function qty(
+  method,
+  type
+){
+
+  return Math.max(
+    0,
+    Math.floor(
+      Number(
+        item(
+          method,
+          type
+        ).qty
+      ) || 0
+    )
+  );
+}
+
+function va(
+  method,
+  type
+){
+
+  return Math.max(
+    0,
+    Number(
+      item(
+        method,
+        type
+      ).va
+    ) || 0
+  );
+}
+
+function total(
+  method,
+  type
+){
+
+  return (
+    qty(
+      method,
+      type
+    ) *
+    va(
+      method,
+      type
+    )
+  );
+}
+
+function managedQty(
+  method,
+  type
+){
+
+  const k =
+    key(
+      method,
+      type
+    );
+
+  const q =
+    qty(
+      method,
+      type
+    );
+
+  const raw =
+    managed[k];
+
+  let n =
+    raw === true
+      ? q
+      : Math.floor(
+          Number(raw) || 0
+        );
+
+  if(n < 0){
+    n = 0;
+  }
+
+  if(n > q){
+    n = q;
+  }
+
+  managed[k] = n;
+
+  return n;
+}
+
+function remaining(
+  method,
+  type
+){
+
+  const q =
+    qty(
+      method,
+      type
+    );
+
+  if(q < 1){
+
+    return total(
+      method,
+      type
+    );
+  }
+
+  return (
+    Math.max(
+      q -
+      managedQty(
+        method,
+        type
+      ),
+      0
+    ) *
+    va(
+      method,
+      type
+    )
+  );
+}
+
+function fmt(n){
+
+  return n
+    ? Math.round(n)
+        .toLocaleString(
+          'en-US'
+        )
+    : '';
+}
+
+function count(method){
+
+  const n =
+    Math.max(
+      1,
+      Math.min(
+        3,
+        Math.floor(
+          Number(
+            counts[method]
+          ) || 1
+        )
+      )
+    );
+
+  counts[method] = n;
+
+  return n;
+}
+
+function coolingTotal(
+  method,
+  generator
+){
+
+  let s = 0;
+
+  for(
+    let i = 1;
+    i <= count(method);
+    i++
+  ){
+
+    s += (
+      generator
+        ? remaining
+        : total
+    )(
+      method,
+      typeFor(
+        'ac',
+        i
+      )
+    );
+  }
+
+  return s;
+}
+
+function heatingTotal(
+  method,
+  generator
+){
+
+  let s = 0;
+
+  for(
+    let i = 1;
+    i <= count(method);
+    i++
+  ){
+
+    s += (
+      generator
+        ? remaining
+        : total
+    )(
+      method,
+      typeFor(
+        'heat',
+        i
+      )
+    );
+  }
+
+  return s;
+}
+
+function heatingQty(method){
+
+  let s = 0;
+
+  for(
+    let i = 1;
+    i <= count(method);
+    i++
+  ){
+
+    s += qty(
+      method,
+      typeFor(
+        'heat',
+        i
+      )
+    );
+  }
+
+  return s;
+}
+
+function fortyApplies(){
+
+  return (
+    heatingQty(
+      'separate40'
+    ) >= 4
+  );
+}
+
+function applicableHeat(
+  method,
+  generator
+){
+
+  const h =
+    heatingTotal(
+      method,
+      generator
+    );
+
+  if(
+    method ===
+    'central65'
+  ){
+    return h * .65;
+  }
+
+  if(
+    method ===
+    'separate40'
+  ){
+    return fortyApplies()
+      ? h * .40
+      : h;
+  }
+
+  if(
+    method ===
+    'heatpump'
+  ){
+    return h * .65;
+  }
+
+  return 0;
+}
+
+function methodResult(
+  method,
+  generator
+){
+
+  const c =
+    coolingTotal(
+      method,
+      generator
+    );
+
+  const h =
+    applicableHeat(
+      method,
+      generator
+    );
+
+  if(
+    method ===
+    'heatpump'
+  ){
+
+    const hp =
+      hpAnswer();
+
+    if(
+      hp === 'yes'
+    ){
+      return c + h;
+    }
+
+    if(
+      hp === 'no'
+    ){
+      return h;
+    }
+
+    return 0;
+  }
+
+  return Math.max(
+    c,
+    h
+  );
+}
+
+function inputHTML(
+  method,
+  type,
+  field,
+  placeholder
+){
+
+  const v =
+    item(
+      method,
+      type
+    )[field] || '';
+
+  return (
+    '<input ' +
+    'data-v522-method="' +
+    method +
+    '" ' +
+    'data-v522-type="' +
+    type +
+    '" ' +
+    'data-v522-field="' +
+    field +
+    '" ' +
+    'type="number" ' +
+    'min="0" ' +
+    'step="' +
+    (
+      field === 'qty'
+        ? '1'
+        : 'any'
+    ) +
+    '" ' +
+    'inputmode="' +
+    (
+      field === 'qty'
+        ? 'numeric'
+        : 'decimal'
+    ) +
+    '" ' +
+    'placeholder="' +
+    placeholder +
+    '" ' +
+    'value="' +
+    v +
+    '">'
+  );
+}
+
+function entryRow(
+  method,
+  type,
+  label
+){
+
+  const k =
+    key(
+      method,
+      type
+    );
+
+  const selected =
+    managedQty(
+      method,
+      type
+    );
+
+  const on =
+    selected > 0;
+
+  return (
+    '<div class="v57-method-row">' +
+
+    '<div class="v57-method-name">' +
+    label +
+    '</div>' +
+
+    '<div class="v57-method-inputs">' +
+
+    inputHTML(
+      method,
+      type,
+      'qty',
+      'Qty'
+    ) +
+
+    inputHTML(
+      method,
+      type,
+      'va',
+      'VA'
+    ) +
+
+    '</div>' +
+
+    '<div class="v57-method-managed">' +
+
+    '<button ' +
+    'type="button" ' +
+    'class="v57-managed-button ' +
+    (
+      on
+        ? 'checked'
+        : ''
+    ) +
+    '" ' +
+    'data-v522-managed="' +
+    k +
+    '" ' +
+    'aria-label="Toggle managed load">' +
+    (
+      on
+        ? '✓'
+        : ''
+    ) +
+    '</button>' +
+
+    '<button ' +
+    'type="button" ' +
+    'class="v57-managed-qty ' +
+    (
+      on
+        ? 'show'
+        : ''
+    ) +
+    '" ' +
+    'data-v522-managed-qty="' +
+    k +
+    '" ' +
+    'aria-label="Reduce managed quantity">' +
+    selected +
+    '</button>' +
+
+    '</div>' +
+
+    '<div class="v57-method-output">' +
+
+    '<div class="v57-output-box">' +
+    '<div class="v57-output-label">' +
+    'Service Load VA' +
+    '</div>' +
+    '<div class="v57-output-value" ' +
+    'data-v522-output="' +
+    k +
+    '_service">' +
+    '</div>' +
+    '</div>' +
+
+    '<div class="v57-output-box">' +
+    '<div class="v57-output-label">' +
+    'Generator Load VA' +
+    '</div>' +
+    '<div class="v57-output-value" ' +
+    'data-v522-output="' +
+    k +
+    '_generator">' +
+    '</div>' +
+    '</div>' +
+
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+function fortyRow(index){
+
+  return (
+    '<div class="v57-method-row v522-calculated-row">' +
+
+    '<div class="v57-method-name">' +
+    'Heating at 40% — System ' +
+    index +
+    '</div>' +
+
+    '<div class="v522-calculated-note" ' +
+    'data-v522-forty-note="' +
+    index +
+    '">' +
+    '</div>' +
+
+    '<div></div>' +
+
+    '<div class="v57-method-output">' +
+
+    '<div class="v57-output-box">' +
+    '<div class="v57-output-label">' +
+    'Service Load VA' +
+    '</div>' +
+    '<div class="v57-output-value" ' +
+    'data-v522-forty="' +
+    index +
+    '_service">' +
+    '</div>' +
+    '</div>' +
+
+    '<div class="v57-output-box">' +
+    '<div class="v57-output-label">' +
+    'Generator Load VA' +
+    '</div>' +
+    '<div class="v57-output-value" ' +
+    'data-v522-forty="' +
+    index +
+    '_generator">' +
+    '</div>' +
+    '</div>' +
+
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+function systemHTML(
+  method,
+  index
+){
+
+  const m =
+    METHODS[method];
+
+  const ac =
+    typeFor(
+      'ac',
+      index
+    );
+
+  const heat =
+    typeFor(
+      'heat',
+      index
+    );
+
+  return (
+    '<div class="v522-system-group">' +
+
+    '<div class="v522-system-title">' +
+    'HVAC System ' +
+    index +
+    '</div>' +
+
+    entryRow(
+      method,
+      ac,
+      m.cool +
+      ' ' +
+      index
+    ) +
+
+    entryRow(
+      method,
+      heat,
+      m.heat +
+      ' ' +
+      index
+    ) +
+
+    (
+      method ===
+      'separate40'
+        ? fortyRow(index)
+        : ''
+    ) +
+
+    '</div>'
+  );
+}
+
+function hpHTML(){
+
+  const a =
+    hpAnswer();
+
+  return (
+    '<div class="v57-hp-question">' +
+
+    '<div class="v57-hp-question-title">' +
+    'Can the heat-pump compressor and supplemental electric heat operate simultaneously?' +
+    '</div>' +
+
+    '<div class="v57-hp-options">' +
+
+    '<button type="button" ' +
+    'class="v57-hp-option ' +
+    (
+      a === 'yes'
+        ? 'selected'
+        : ''
+    ) +
+    '" ' +
+    'data-v522-hp="yes">' +
+
+    '<span class="v57-hp-check">' +
+    (
+      a === 'yes'
+        ? '✓'
+        : ''
+    ) +
+    '</span>' +
+
+    '<span>' +
+    'Yes — compressor at 100% plus supplemental heat at 65%' +
+    '</span>' +
+
+    '</button>' +
+
+    '<button type="button" ' +
+    'class="v57-hp-option ' +
+    (
+      a === 'no'
+        ? 'selected'
+        : ''
+    ) +
+    '" ' +
+    'data-v522-hp="no">' +
+
+    '<span class="v57-hp-check">' +
+    (
+      a === 'no'
+        ? '✓'
+        : ''
+    ) +
+    '</span>' +
+
+    '<span>' +
+    'No — controls lock out the compressor during supplemental heat' +
+    '</span>' +
+
+    '</button>' +
+
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+function comparisonHTML(){
+
+  return (
+    '<div class="v57-forty-comparison">' +
+
+    '<div>' +
+    '<span>Total heating quantity</span>' +
+    '<strong data-v522-compare="qty"></strong>' +
+    '</div>' +
+
+    '<div>' +
+    '<span>Cooling at 100%</span>' +
+    '<strong data-v522-compare="cooling"></strong>' +
+    '</div>' +
+
+    '<div>' +
+    '<span data-v522-heat-label>' +
+    'Heating at 100%' +
+    '</span>' +
+    '<strong data-v522-compare="heating-used"></strong>' +
+    '</div>' +
+
+    '<div class="v57-forty-used">' +
+    '<span>HVAC load used</span>' +
+    '<strong data-v522-compare="used"></strong>' +
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+function cardHTML(method){
+
+  let systems = '';
+
+  for(
+    let i = 1;
+    i <= count(method);
+    i++
+  ){
+
+    systems +=
+      systemHTML(
+        method,
+        i
+      );
+  }
+
+  const controls =
+    '<div class="v523-system-controls">' +
+
+    (
+      count(method) < 3
+        ? (
+            '<button type="button" ' +
+            'class="v522-add-system" ' +
+            'data-v522-add="' +
+            method +
+            '">' +
+            '+ Add HVAC System' +
+            '</button>'
+          )
+        : ''
+    ) +
+
+    (
+      count(method) > 1
+        ? (
+            '<button type="button" ' +
+            'class="v523-remove-system" ' +
+            'data-v523-remove="' +
+            method +
+            '">' +
+            '− Remove HVAC System' +
+            '</button>'
+          )
+        : ''
+    ) +
+
+    '</div>';
+
+  return (
+    '<section class="v57-method-card" ' +
+    'data-v522-card="' +
+    method +
+    '">' +
+
+    '<div class="v57-method-heading">' +
+    METHODS[method].title +
+    '</div>' +
+
+    systems +
+
+    (
+      method ===
+      'separate40'
+        ? (
+            comparisonHTML() +
+            controls
+          )
+        : controls
+    ) +
+
+    (
+      method ===
+      'heatpump'
+        ? hpHTML()
+        : ''
+    ) +
+
+    '</section>'
+  );
+}
+
+function container(){
+
+  return document.getElementById(
+    'v57HvacMethodSections'
+  );
+}
+
+function bind(c){
+
+  c
+    .querySelectorAll(
+      '[data-v522-method]'
+    )
+    .forEach(el=>{
+
+      el.addEventListener(
+        'input',
+        ()=>{
+
+          const k =
+            key(
+              el.dataset.v522Method,
+              el.dataset.v522Type
+            );
+
+          data[k] =
+            data[k] || {};
+
+          data[k][
+            el.dataset.v522Field
+          ] =
+            el.value;
+
+          const q =
+            Math.max(
+              0,
+              Math.floor(
+                Number(
+                  data[k].qty
+                ) || 0
+              )
+            );
+
+          if(
+            Math.floor(
+              Number(
+                managed[k]
+              ) || 0
+            ) > q
+          ){
+            managed[k] = q;
+          }
+
+          save();
+
+          calculate();
+
+          updateOutputs();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v522-managed]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        ()=>{
+
+          const k =
+            b.dataset.v522Managed;
+
+          const parts =
+            k.split('_');
+
+          const method =
+            parts.shift();
+
+          const type =
+            parts.join('_');
+
+          const q =
+            qty(
+              method,
+              type
+            );
+
+          managed[k] =
+            managedQty(
+              method,
+              type
+            ) > 0
+              ? 0
+              : q;
+
+          save();
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v522-managed-qty]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        event=>{
+
+          event.stopPropagation();
+
+          const k =
+            b.dataset
+              .v522ManagedQty;
+
+          const parts =
+            k.split('_');
+
+          const method =
+            parts.shift();
+
+          const type =
+            parts.join('_');
+
+          const q =
+            qty(
+              method,
+              type
+            );
+
+          if(q < 1){
+            return;
+          }
+
+          let n =
+            managedQty(
+              method,
+              type
+            ) - 1;
+
+          if(n < 0){
+            n = q;
+          }
+
+          managed[k] = n;
+
+          save();
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v522-add]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        ()=>{
+
+          const m =
+            b.dataset.v522Add;
+
+          counts[m] =
+            Math.min(
+              3,
+              count(m) + 1
+            );
+
+          save();
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v523-remove]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        ()=>{
+
+          const m =
+            b.dataset.v523Remove;
+
+          const current =
+            count(m);
+
+          if(
+            current <= 1
+          ){
+            return;
+          }
+
+          const removed =
+            current;
+
+          for(
+            const type of [
+              typeFor(
+                'ac',
+                removed
+              ),
+              typeFor(
+                'heat',
+                removed
+              )
+            ]
+          ){
+
+            delete data[
+              key(
+                m,
+                type
+              )
+            ];
+
+            delete managed[
+              key(
+                m,
+                type
+              )
+            ];
+          }
+
+          counts[m] =
+            current - 1;
+
+          save();
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+
+  c
+    .querySelectorAll(
+      '[data-v522-hp]'
+    )
+    .forEach(b=>{
+
+      b.addEventListener(
+        'click',
+        ()=>{
+
+          const v =
+            b.dataset.v522Hp;
+
+          if(
+            hpAnswer() === v
+          ){
+
+            localStorage.removeItem(
+              HP_KEY
+            );
+
+          }else{
+
+            localStorage.setItem(
+              HP_KEY,
+              v
+            );
+          }
+
+          render();
+
+          calculate();
+        }
+      );
+    });
+}
+
+function render(){
+
+  const c =
+    container();
+
+  if(!c){
+    return;
+  }
+
+  const sel =
+    selected();
+
+  c.innerHTML =
+    sel.length
+      ? sel
+          .map(
+            cardHTML
+          )
+          .join('')
+      : (
+          '<div id="v57NoMethodMessage">' +
+          'Select a heating method above to open its HVAC load section.' +
+          '</div>'
+        );
+
+  bind(c);
+
+  updateOutputs();
+}
+
+function setText(
+  selector,
+  value
+){
+
+  const e =
+    document.querySelector(
+      selector
+    );
+
+  if(e){
+    e.textContent =
+      value;
+  }
+}
+
+function updateOutputs(){
+
+  selected()
+    .forEach(method=>{
+
+      const cTotal =
+        coolingTotal(
+          method,
+          false
+        );
+
+      const hBase =
+        heatingTotal(
+          method,
+          false
+        );
+
+      const hApplicable =
+        applicableHeat(
+          method,
+          false
+        );
+
+      const coolControls =
+        method ===
+        'heatpump'
+          ? false
+          : cTotal >=
+            hApplicable;
+
+      for(
+        let i = 1;
+        i <= count(method);
+        i++
+      ){
+
+        const ac =
+          typeFor(
+            'ac',
+            i
+          );
+
+        const heat =
+          typeFor(
+            'heat',
+            i
+          );
+
+        const acS =
+          total(
+            method,
+            ac
+          );
+
+        const acG =
+          remaining(
+            method,
+            ac
+          );
+
+        const hS =
+          total(
+            method,
+            heat
+          );
+
+        const hG =
+          remaining(
+            method,
+            heat
+          );
+
+        let acSO = 0;
+        let acGO = 0;
+        let hSO = 0;
+        let hGO = 0;
+
+        if(
+          method ===
+          'heatpump'
+        ){
+
+          if(
+            hpAnswer() ===
+            'yes'
+          ){
+
+            acSO = acS;
+            acGO = acG;
+
+            hSO =
+              hS * .65;
+
+            hGO =
+              hG * .65;
+
+          }else if(
+            hpAnswer() ===
+            'no'
+          ){
+
+            hSO =
+              hS * .65;
+
+            hGO =
+              hG * .65;
+          }
+
+        }else if(
+          coolControls
+        ){
+
+          acSO = acS;
+          acGO = acG;
+
+        }else{
+
+          const factor =
+            method ===
+            'central65'
+              ? .65
+              : (
+                  fortyApplies()
+                    ? .40
+                    : 1
+                );
+
+          hSO =
+            hS * factor;
+
+          hGO =
+            hG * factor;
+        }
+
+        setText(
+          '[data-v522-output="' +
+          key(
+            method,
+            ac
+          ) +
+          '_service"]',
+          fmt(acSO)
+        );
+
+        setText(
+          '[data-v522-output="' +
+          key(
+            method,
+            ac
+          ) +
+          '_generator"]',
+          fmt(acGO)
+        );
+
+        setText(
+          '[data-v522-output="' +
+          key(
+            method,
+            heat
+          ) +
+          '_service"]',
+          fmt(hSO)
+        );
+
+        setText(
+          '[data-v522-output="' +
+          key(
+            method,
+            heat
+          ) +
+          '_generator"]',
+          fmt(hGO)
+        );
+
+        if(
+          method ===
+          'separate40'
+        ){
+
+          const applies =
+            fortyApplies();
+
+          setText(
+            '[data-v522-forty="' +
+            i +
+            '_service"]',
+            applies
+              ? fmt(
+                  hS * .40
+                )
+              : ''
+          );
+
+          setText(
+            '[data-v522-forty="' +
+            i +
+            '_generator"]',
+            applies
+              ? fmt(
+                  hG * .40
+                )
+              : ''
+          );
+
+          setText(
+            '[data-v522-forty-note="' +
+            i +
+            '"]',
+            applies
+              ? 'Calculated automatically'
+              : 'Not applied — fewer than 4 total heating units'
+          );
+        }
+      }
+
+      if(
+        method ===
+        'separate40'
+      ){
+
+        const applies =
+          fortyApplies();
+
+        const used =
+          Math.max(
+            cTotal,
+            hApplicable
+          );
+
+        setText(
+          '[data-v522-compare="qty"]',
+          String(
+            heatingQty(method)
+          )
+        );
+
+        setText(
+          '[data-v522-compare="cooling"]',
+          fmt(cTotal)
+        );
+
+        setText(
+          '[data-v522-compare="heating-used"]',
+          fmt(
+            hApplicable
+          )
+        );
+
+        const label =
+          document.querySelector(
+            '[data-v522-heat-label]'
+          );
+
+        if(label){
+
+          label.textContent =
+            applies
+              ? 'Heating at 40%'
+              : 'Heating at 100%';
+        }
+
+        setText(
+          '[data-v522-compare="used"]',
+          fmt(used) +
+          (
+            hApplicable >
+            cTotal
+              ? ' — Heating'
+              : ' — Cooling'
+          )
+        );
+      }
+    });
+}
+
+window.hvacLoadCalculation =
+  function(){
+
+    let service = 0;
+
+    let generator = 0;
+
+    let serviceAC = 0;
+
+    let generatorAC = 0;
+
+    let serviceHeating = 0;
+
+    let generatorHeating = 0;
+
+    selected()
+      .forEach(method=>{
+
+        const cS =
+          coolingTotal(
+            method,
+            false
+          );
+
+        const cG =
+          coolingTotal(
+            method,
+            true
+          );
+
+        const hS =
+          applicableHeat(
+            method,
+            false
+          );
+
+        const hG =
+          applicableHeat(
+            method,
+            true
+          );
+
+        const hp =
+          hpAnswer();
+
+        if(
+          method ===
+          'heatpump'
+        ){
+
+          if(
+            hp === 'yes'
+          ){
+
+            service +=
+              cS + hS;
+
+            generator +=
+              cG + hG;
+
+            serviceAC += cS;
+            generatorAC += cG;
+
+            serviceHeating += hS;
+            generatorHeating += hG;
+
+          }else if(
+            hp === 'no'
+          ){
+
+            service += hS;
+            generator += hG;
+
+            serviceHeating += hS;
+            generatorHeating += hG;
+          }
+
+        }else if(
+          cS >= hS
+        ){
+
+          service += cS;
+          generator += cG;
+
+          serviceAC += cS;
+          generatorAC += cG;
+
+        }else{
+
+          service += hS;
+          generator += hG;
+
+          serviceHeating += hS;
+          generatorHeating += hG;
+        }
+      });
+
+    setOutput(
+      'e37',
+      serviceAC
+    );
+
+    setOutput(
       'e38',
       serviceHeating
     );
