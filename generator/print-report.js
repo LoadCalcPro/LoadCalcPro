@@ -194,7 +194,7 @@ window.updatePrintRows=function(data){
   let continuousRows='';
   const ev=typeof window.getEVSystemState==='function'?window.getEVSystemState():null;
   if(ev&&Array.isArray(ev.rows)){
-    ev.rows.forEach((item,index)=>{if(item.quantity>0&&item.va>0)continuousRows+=loadRow('EV Charger'+(index?' '+(index+1):'')+' — Connected',item.quantity,item.va,item.connected,0,null,'normal-load-row','')});
+    ev.rows.forEach((item,index)=>{if(item.quantity>0&&item.va>0)continuousRows+=loadRow('EV Charger'+(index?' '+(index+1):'')+' — Connected',item.quantity,item.va,item.connected,ev.energyManaged?0:item.generatorConnected,null,'normal-load-row','')});
     if(ev.connected>0)continuousRows+=totalRow('Connected EV Load',ev.connected,0,'subtotal-row');
     if(ev.energyManaged&&ev.service>0)continuousRows+=totalRow('Combined EV Energy Management Maximum',ev.service,0,'subtotal-row');
     if(ev.service>0)continuousRows+=totalRow('EV Load Used'+(ev.generatorManaged?' — Generator Managed':''),ev.service,ev.generator,'subtotal-row');

@@ -2,7 +2,7 @@
 'use strict';
 
 const KEY='loadcalcpro_generator_ev_system_v1';
-let rows=[{qty:'',va:''}],energyManaged=false,managedMaximum='',generatorManaged=false,ready=false;
+let rows=[{qty:'',va:'',managedQty:0}],energyManaged=false,managedMaximum='',generatorManaged=false,ready=false;
 const $=id=>document.getElementById(id);
 const number=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?n:0};
 const quantity=value=>Math.max(0,Math.floor(number(value)));
@@ -15,15 +15,15 @@ function saved(){
 function load(){
   const data=saved();
   if(data&&Array.isArray(data.rows)&&data.rows.length){
-    rows=data.rows.map(row=>({qty:row&&row.qty!==undefined?String(row.qty):'',va:row&&row.va!==undefined?String(row.va):''}));
+    rows=data.rows.map(row=>({qty:row&&row.qty!==undefined?String(row.qty):'',va:row&&row.va!==undefined?String(row.va):'',managedQty:Math.max(0,Math.floor(number(row&&row.managedQty)))}));
     energyManaged=data.energyManaged===true;
     managedMaximum=data.managedMaximum!==undefined?String(data.managedMaximum):'';
     generatorManaged=data.generatorManaged===true;
   }else{
     const oldQty=$('q43')?$('q43').value:'';
     const oldVA=$('v43')?$('v43').value:'';
-    rows=[{qty:oldQty,va:oldVA}];
-    if(typeof managedQuantities==='object'&&managedQuantities)generatorManaged=Number(managedQuantities[43]||0)>0;
+    const oldManaged=typeof managedQuantities==='object'&&managedQuantities?Math.max(0,Math.floor(Number(managedQuantities[43]||0))):0;
+    rows=[{qty:oldQty,va:oldVA,managedQty:oldManaged}];
   }
   if(typeof managedQuantities==='object'&&managedQuantities){managedQuantities[43]=0;if(typeof saveManagedQuantities==='function')saveManagedQuantities()}
 }
@@ -37,8 +37,9 @@ function rowMarkup(row,index){
   return '<div class="load-row ev-charger-row" data-ev-index="'+index+'">'+
     '<div class="load-name continuous-load-name"><div class="ev-charger-name">EV Charger'+(suffix?' '+suffix:'')+'</div><small>7,200 VA minimum or nameplate</small></div>'+
     '<div class="load-inputs"><div class="input-block"><label for="'+qtyId+'">Qty</label><input id="'+qtyId+'" data-ev-key="qty" type="number" min="0" step="1" inputmode="numeric" placeholder="Qty" value="'+escapeValue(row.qty)+'"></div>'+
-    '<div class="input-block"><label for="'+vaId+'">Nameplate VA</label><input id="'+vaId+'" data-ev-key="va" type="number" min="0" step="any" inputmode="decimal" placeholder="Nameplate VA" value="'+escapeValue(row.va)+'"></div></div>'+
-    '<div class="row-output"><div class="output-box"><div class="output-label">Connected VA</div><div class="output-value" data-ev-connected></div></div></div></div>';
+    '<div class="input-block"><label for="'+vaId+'">Nameplate VA</label><input id="'+vaId+'" data-ev-key="va" type="number" min="0" step="any" inputmode="decimal" placeholder="Nameplate VA" value="'+escapeValue(row.va)+'"></div>'+
+    '<div class="inline-managed-controls ev-row-managed-controls"><button class="managed-check" data-ev-manage-toggle type="button" aria-label="Manage EV Charger'+(suffix?' '+suffix:'')+' load"></button><button class="managed-qty" data-ev-managed-qty type="button" aria-label="Reduce managed EV Charger'+(suffix?' '+suffix:'')+' quantity">0</button></div></div>'+
+    '<div class="row-output"><div class="output-box"><div class="output-label">Service Load VA</div><div class="output-value" data-ev-service></div></div><div class="output-box"><div class="output-label">Generator Load VA</div><div class="output-value" data-ev-generator></div></div></div></div>';
 }
 
 function escapeValue(value){return String(value===undefined?'':value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -57,7 +58,7 @@ function syncRowsFromDOM(){
 }
 
 function calculateModel(sourceRows,isEnergyManaged,maximumValue,isGeneratorManaged){
-  const completed=(sourceRows||[]).map((row,index)=>({index,quantity:quantity(row.qty),va:number(row.va)})).filter(row=>row.quantity>0&&row.va>0).map(row=>({...row,connected:row.quantity*Math.max(7200,row.va)}));
+  const completed=(sourceRows||[]).map((row,index)=>({index,quantity:quantity(row.qty),va:number(row.va),managedQty:Math.max(0,Math.min(quantity(row.qty),Math.floor(number(row.managedQty))))})).filter(row=>row.quantity>0&&row.va>0).map(row=>({...row,connected:row.quantity*Math.max(7200,row.va),generatorConnected:(row.quantity-row.managedQty)*Math.max(7200,row.va)}));
   const connected=completed.reduce((sum,row)=>sum+row.connected,0);
   const entered=(sourceRows||[]).some(row=>number(row.qty)>0||number(row.va)>0);
   const partial=(sourceRows||[]).some(row=>(quantity(row.qty)>0)!==(number(row.va)>0));
@@ -65,8 +66,9 @@ function calculateModel(sourceRows,isEnergyManaged,maximumValue,isGeneratorManag
   const managed=enabled&&isEnergyManaged===true;
   const maximum=number(maximumValue);
   const service=managed&&maximum>0?maximum:connected;
-  const generatorIsManaged=enabled&&isGeneratorManaged===true;
-  return {rows:completed,connected,energyManaged:managed,managedMaximum:maximum,service,generatorManaged:generatorIsManaged,generator:generatorIsManaged?0:service,complete:enabled,partial,entered};
+  const generatorIsManaged=managed&&isGeneratorManaged===true;
+  const generator=managed?(generatorIsManaged?0:service):completed.reduce((sum,row)=>sum+row.generatorConnected,0);
+  return {rows:completed,connected,energyManaged:managed,managedMaximum:maximum,service,generatorManaged:generatorIsManaged,generator,complete:enabled,partial,entered};
 }
 
 function state(){
@@ -82,7 +84,19 @@ function renderRows(){
     const holder=event.target.closest('[data-ev-index]'),index=Number(holder.dataset.evIndex),key=event.target.dataset.evKey;
     if(key==='qty'&&event.target.value!==''&&Number(event.target.value)<=0)event.target.value='';
     rows[index][key]=event.target.value;
+    rows[index].managedQty=Math.min(quantity(rows[index].qty),Math.max(0,Math.floor(number(rows[index].managedQty))));
     update();
+  }));
+  container.querySelectorAll('[data-ev-manage-toggle]').forEach(button=>button.addEventListener('click',event=>{
+    const holder=event.target.closest('[data-ev-index]'),index=Number(holder.dataset.evIndex),total=quantity(rows[index].qty);
+    if(energyManaged||!total||!number(rows[index].va))return;
+    rows[index].managedQty=number(rows[index].managedQty)>0?0:total;
+    update();
+  }));
+  container.querySelectorAll('[data-ev-managed-qty]').forEach(button=>button.addEventListener('click',event=>{
+    const holder=event.target.closest('[data-ev-index]'),index=Number(holder.dataset.evIndex),total=quantity(rows[index].qty);
+    if(energyManaged||!total||!number(rows[index].va))return;
+    let selected=Math.floor(number(rows[index].managedQty))-1;if(selected<0)selected=total;rows[index].managedQty=selected;update();
   }));
 }
 
@@ -95,10 +109,12 @@ function messages(forPrint){
 }
 
 function renderControls(){
-  const enabled=controlsEnabled(),energy=$('evEnergyManaged'),generator=$('evGeneratorManaged');
+  const enabled=controlsEnabled(),energy=$('evEnergyManaged'),generator=$('evGeneratorManaged'),systemControls=$('evSystemGeneratorControls');
   if(!enabled){energyManaged=false;generatorManaged=false}
   energy.disabled=!enabled;energy.checked=energyManaged;
-  generator.disabled=!enabled;generator.checked=generatorManaged;
+  generator.disabled=!energyManaged;generator.classList.toggle('checked',energyManaged&&generatorManaged);generator.textContent=energyManaged&&generatorManaged?'✓':'';
+  systemControls.classList.toggle('v535-managed-inactive',!energyManaged);
+  $('evGeneratorManagedQty').classList.toggle('show',energyManaged&&generatorManaged);
   $('evManagedMaximumField').hidden=!energyManaged;
   $('evManagedMaximum').disabled=!energyManaged;
   $('evManagedMaximum').value=managedMaximum;
@@ -108,12 +124,14 @@ function renderControls(){
 function renderValues(){
   const current=state();
   document.querySelectorAll('[data-ev-index]').forEach(holder=>{
-    const index=Number(holder.dataset.evIndex),row=rows[index],output=holder.querySelector('[data-ev-connected]');
-    if(output)output.textContent=quantity(row.qty)&&number(row.va)?format(quantity(row.qty)*Math.max(7200,number(row.va))):'';
+    const index=Number(holder.dataset.evIndex),row=rows[index],total=quantity(row.qty),va=number(row.va),selected=Math.min(total,Math.floor(number(row.managedQty))),complete=total&&va,service=complete?total*Math.max(7200,va):0,generator=complete?(total-selected)*Math.max(7200,va):0,controls=holder.querySelector('.ev-row-managed-controls'),check=holder.querySelector('[data-ev-manage-toggle]'),qtyButton=holder.querySelector('[data-ev-managed-qty]');
+    controls.classList.toggle('v535-managed-inactive',energyManaged||!complete);check.classList.toggle('checked',!energyManaged&&selected>0);check.textContent=!energyManaged&&selected>0?'✓':'';qtyButton.classList.toggle('show',!energyManaged&&selected>0);qtyButton.textContent=String(selected);holder.querySelector('[data-ev-service]').textContent=format(service);holder.querySelector('[data-ev-generator]').textContent=format(energyManaged?service:generator);
   });
   if($('evConnectedTotal'))$('evConnectedTotal').textContent=format(current.connected);
   if($('e43'))$('e43').textContent=format(current.service);
   if($('f43'))$('f43').textContent=format(current.generator);
+  if($('evManagedServiceOutput'))$('evManagedServiceOutput').textContent=current.energyManaged?format(current.service):'';
+  if($('evManagedGeneratorOutput'))$('evManagedGeneratorOutput').textContent=current.energyManaged?format(current.generator):'';
   const warning=$('evValidation'),errors=messages(false);
   warning.hidden=!errors.length;
   warning.innerHTML=errors.map(error=>'<div>'+escapeValue(error)+'</div>').join('');
@@ -126,7 +144,7 @@ function update(runCalculation=true){
   if(runCalculation&&ready&&typeof window.calculate==='function')window.calculate();
 }
 
-function addRow(){rows.push({qty:'',va:''});renderRows();update()}
+function addRow(){rows.push({qty:'',va:'',managedQty:0});renderRows();update()}
 function removeRow(){
   if(rows.length<=1)return;
   const last=rows[rows.length-1];
@@ -141,7 +159,7 @@ function init(){
   $('removeEvCharger').addEventListener('click',removeRow);
   $('evEnergyManaged').addEventListener('change',event=>{energyManaged=event.target.checked;update()});
   $('evManagedMaximum').addEventListener('input',event=>{managedMaximum=event.target.value;update()});
-  $('evGeneratorManaged').addEventListener('change',event=>{generatorManaged=event.target.checked;update()});
+  $('evGeneratorManaged').addEventListener('click',()=>{if(!energyManaged)return;generatorManaged=!generatorManaged;update()});
   ready=true;update();
 }
 
@@ -164,7 +182,7 @@ const previousManagedCount=window.getCompleteManagedLoadCount;
 window.getCompleteManagedLoadCount=function(){
   const base=typeof previousManagedCount==='function'?Number(previousManagedCount())||0:0;
   const ev=state();
-  return base+(ev.generatorManaged?ev.rows.reduce((sum,row)=>sum+row.quantity,0):0);
+  return base+(ev.energyManaged&&ev.generatorManaged?ev.rows.reduce((sum,row)=>sum+row.quantity,0):ev.energyManaged?0:ev.rows.reduce((sum,row)=>sum+row.managedQty,0));
 };
 window.applicableManagedLoadCount=window.getCompleteManagedLoadCount;
 window.getEVSystemState=state;
@@ -175,7 +193,7 @@ window.validateEVSystemForPrint=function(){
   const warning=$('evValidation');warning.hidden=false;warning.innerHTML=errors.map(error=>'<div>'+escapeValue(error)+'</div>').join('');warning.scrollIntoView({behavior:'smooth',block:'center'});return false;
 };
 window.resetEVSystem=function(){
-  rows=[{qty:'',va:''}];energyManaged=false;managedMaximum='';generatorManaged=false;
+  rows=[{qty:'',va:'',managedQty:0}];energyManaged=false;managedMaximum='';generatorManaged=false;
   try{localStorage.removeItem(KEY)}catch(e){}
   if(ready){renderRows();update(false)}
 };
