@@ -102,7 +102,7 @@ function renderRows(){
 
 function messages(forPrint){
   const current=state(),errors=[];
-  if(current.partial)errors.push('Complete quantity and VA for every entered EV charger.');
+  if(forPrint&&current.partial)errors.push('Complete quantity and VA for every entered EV charger.');
   if(!current.energyManaged)current.rows.filter(row=>row.va<7200).forEach(row=>errors.push('EV Charger'+(row.index?' '+(row.index+1):'')+' load must be at least 7,200 VA unless EV Energy Management is selected.'));
   if(forPrint&&current.energyManaged&&!current.managedMaximum)errors.push('Enter the combined EV Energy Management maximum VA.');
   return forPrint?errors:errors;
