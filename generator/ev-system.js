@@ -35,7 +35,7 @@ function save(){
 function rowMarkup(row,index){
   const suffix=index===0?'':String(index+1),qtyId=index===0?'q43':'evQty'+index,vaId=index===0?'v43':'evVa'+index;
   return '<div class="load-row ev-charger-row" data-ev-index="'+index+'">'+
-    '<div class="load-name continuous-load-name"><div class="ev-charger-name">EV Charger'+(suffix?' '+suffix:'')+'</div><small>7,200 VA minimum or nameplate</small></div>'+
+    '<div class="load-name continuous-load-name"><div class="ev-charger-name">EV Charger'+(suffix?' '+suffix:'')+'</div></div>'+
     '<div class="load-inputs"><div class="input-block"><label for="'+qtyId+'">Qty</label><input id="'+qtyId+'" data-ev-key="qty" type="number" min="0" step="1" inputmode="numeric" placeholder="Qty" value="'+escapeValue(row.qty)+'"></div>'+
     '<div class="input-block"><label for="'+vaId+'">Nameplate VA</label><input id="'+vaId+'" data-ev-key="va" type="number" min="0" step="any" inputmode="decimal" placeholder="Nameplate VA" value="'+escapeValue(row.va)+'"></div>'+
     '<div class="inline-managed-controls ev-row-managed-controls"><button class="managed-check" data-ev-manage-toggle type="button" aria-label="Manage EV Charger'+(suffix?' '+suffix:'')+' load"></button><button class="managed-qty" data-ev-managed-qty type="button" aria-label="Reduce managed EV Charger'+(suffix?' '+suffix:'')+' quantity">0</button></div></div>'+
@@ -104,7 +104,7 @@ function messages(forPrint){
   const current=state(),errors=[];
   if(current.partial)errors.push('Complete quantity and VA for every entered EV charger.');
   if(!current.energyManaged)current.rows.filter(row=>row.va<7200).forEach(row=>errors.push('EV Charger'+(row.index?' '+(row.index+1):'')+' load must be at least 7,200 VA unless EV Energy Management is selected.'));
-  if(current.energyManaged&&!current.managedMaximum)errors.push('Enter the combined EV Energy Management maximum VA.');
+  if(forPrint&&current.energyManaged&&!current.managedMaximum)errors.push('Enter the combined EV Energy Management maximum VA.');
   return forPrint?errors:errors;
 }
 
