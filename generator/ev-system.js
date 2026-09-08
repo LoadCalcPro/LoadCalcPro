@@ -47,7 +47,7 @@ function escapeValue(value){return String(value===undefined?'':value).replace(/&
 function activeRows(){return rows.map((row,index)=>({index,quantity:quantity(row.qty),va:number(row.va)})).filter(row=>row.quantity>0||row.va>0)}
 function completeRows(){return activeRows().filter(row=>row.quantity>0&&row.va>0)}
 function hasPartial(){return activeRows().some(row=>(row.quantity>0)!==(row.va>0))}
-function controlsEnabled(){return completeRows().length>0&&!hasPartial()}
+function controlsEnabled(){return activeRows().length>0}
 
 function syncRowsFromDOM(){
   if(!ready)return;
@@ -103,7 +103,7 @@ function renderRows(){
 function messages(forPrint){
   const current=state(),errors=[];
   if(forPrint&&current.partial)errors.push('Complete quantity and VA for every entered EV charger.');
-  if(!current.energyManaged)current.rows.filter(row=>row.va<7200).forEach(row=>errors.push('EV Charger'+(row.index?' '+(row.index+1):'')+' load must be at least 7,200 VA unless EV Energy Management is selected.'));
+  if(forPrint&&!current.energyManaged)current.rows.filter(row=>row.va<7200).forEach(row=>errors.push('EV Charger'+(row.index?' '+(row.index+1):'')+' load must be at least 7,200 VA unless EV Energy Management is selected.'));
   if(forPrint&&current.energyManaged&&!current.managedMaximum)errors.push('Enter the combined EV Energy Management maximum VA.');
   return forPrint?errors:errors;
 }
